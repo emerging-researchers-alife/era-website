@@ -12,6 +12,8 @@ interface EventDetailProps {
   selectedOccurrence?: EventOccurrence;
 }
 
+const MAX_VISIBLE_DATES = 4;
+
 const SANITIZE_OPTIONS = {
   ADD_TAGS: ['math', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub', 'mfrac', 'mtext', 'annotation', 'semantics'],
   ADD_ATTR: ['encoding', 'data-codetabs', 'data-expandable-code', 'data-nca'],
@@ -51,6 +53,8 @@ export function EventDetail({ slug, selectedOccurrence }: EventDetailProps) {
     () => (event ? getDisplayOccurrences(event) : []),
     [event]
   );
+  const visibleOccurrences = displayOccurrences.slice(0, MAX_VISIBLE_DATES);
+  const hiddenOccurrenceCount = Math.max(displayOccurrences.length - visibleOccurrences.length, 0);
   const datesAreUpcoming =
     displayOccurrences.length > 0 &&
     new Date(displayOccurrences[0].endUtc ?? displayOccurrences[0].startUtc).getTime() >= Date.now();
@@ -166,7 +170,7 @@ export function EventDetail({ slug, selectedOccurrence }: EventDetailProps) {
           {datesAreUpcoming ? 'Upcoming Dates' : 'Dates'}
         </h3>
         <div className="grid gap-2">
-          {displayOccurrences.map((date) => (
+          {visibleOccurrences.map((date) => (
             <div
               key={date.startUtc}
               className="rounded-lg border border-[var(--color-border)] bg-white px-4 py-3"
@@ -180,6 +184,11 @@ export function EventDetail({ slug, selectedOccurrence }: EventDetailProps) {
             </div>
           ))}
         </div>
+        {hiddenOccurrenceCount > 0 && (
+          <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
+            {hiddenOccurrenceCount} later {hiddenOccurrenceCount === 1 ? 'date' : 'dates'} available through the calendar links.
+          </p>
+        )}
       </section>
 
       {event.activities && event.activities.length > 0 && (

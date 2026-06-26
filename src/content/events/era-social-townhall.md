@@ -22,8 +22,5 @@ featured: true
 status: "published"
 ---
 
-The ERA Social Townhall is for chatting, gaming, and other social activities.
-
-Minecraft vanilla server: eravanillav1.aternos.me
-
-DM Andy for access.
+Join the town hall voice channel on Discord for an informal social session with
+other ERA members.
