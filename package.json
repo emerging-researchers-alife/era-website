@@ -3,15 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "bun@1.3.11",
   "scripts": {
-    "dev": "$npm_execpath run build:articles && $npm_execpath run build:events && $npm_execpath --hot src/index.ts",
-    "start": "NODE_ENV=production $npm_execpath src/index.ts",
-    "build:articles": "$npm_execpath run scripts/process-articles.ts",
-    "build:events": "$npm_execpath run scripts/process-events.ts",
-    "build:site": "$npm_execpath run build.ts",
-    "build": "$npm_execpath run build:articles && $npm_execpath run build:events && $npm_execpath run build:site",
-    "content": "$npm_execpath run build:articles && $npm_execpath run build:events",
-    "postinstall": "$npm_execpath run content"
+    "dev": "bun run build:articles && bun run build:events && bun --hot src/index.ts",
+    "start": "NODE_ENV=production bun src/index.ts",
+    "build:articles": "bun run scripts/process-articles.ts",
+    "build:events": "bun run scripts/process-events.ts",
+    "build:site": "bun run build.ts",
+    "build": "bun run build:articles && bun run build:events && bun run build:site",
+    "content": "bun run build:articles && bun run build:events",
+    "postinstall": "bun run content"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
