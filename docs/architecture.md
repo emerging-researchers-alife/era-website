@@ -32,3 +32,8 @@ Both files are gitignored.
 bundles the frontend into `dist/`, writes static-hosting fallbacks for
 client-side routes, and copies generated article/event assets into the final
 output.
+
+For reliable static hosting, known app routes also receive their own
+`index.html` copy in `dist/`. That lets `/events`, `/resources/<slug>`, and
+event detail URLs return `200` responses directly instead of relying only on a
+catch-all 404 fallback.

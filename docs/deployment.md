@@ -29,6 +29,9 @@ Actions. Add these repository secrets before relying on automatic deployment:
 2. `CLOUDFLARE_API_TOKEN`: a Cloudflare API token with Pages edit/deploy access
    for that account.
 
+If either secret is missing, the workflow still validates and builds the site,
+but skips deployment with a warning.
+
 If ERA prefers Cloudflare's native Git integration instead, connect the GitHub
 repository in the Cloudflare dashboard with the same build settings above and
 remove `.github/workflows/deploy.yml`.
