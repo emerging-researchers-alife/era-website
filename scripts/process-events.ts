@@ -1,0 +1,310 @@
+#!/usr/bin/env bun
+/**
+ * Event processing script for ERA.
+ *
+ * Scans src/content/events/ for Markdown files, processes them through
+ * the unified pipeline, and generates:
+ * 1. src/content/events.registry.ts - metadata and occurrence cache
+ * 2. .build/events/*.json - full event content for optional detail views
+ * 3. .build/events/*.ics and era-events.ics - calendar subscriptions
+ *
+ * Usage:
+ *   bun run scripts/process-events.ts
+ *   bun run scripts/process-events.ts --include-drafts
+ *   bun run scripts/process-events.ts --check
+ */
+
+import { Glob } from 'bun';
+import matter from 'gray-matter';
+import ical, { ICalCalendarMethod } from 'ical-generator';
+import { DateTime } from 'luxon';
+
+import { getVtimezoneComponent } from '@touch4it/ical-timezones';
+
+import { validateEventFrontmatter } from './lib/validators';
+import { createPipeline } from './lib/pipeline';
+import { expandOccurrences, describeRecurrence } from './lib/events';
+import { slugify } from './lib/utils';
+import type { Event, EventFrontmatter, EventMetadata } from '../src/content/events.types';
+
+const EVENTS_DIR = 'src/content/events';
+const OUTPUT_DIR = '.build/events';
+const REGISTRY_PATH = 'src/content/events.registry.ts';
+const CALENDAR_DOMAIN = 'emergingresearchers.life';
+
+const includeDrafts = process.argv.includes('--include-drafts');
+const checkOnly = process.argv.includes('--check');
+
+interface ProcessResult {
+  slug: string;
+  metadata: EventMetadata;
+  full: Event;
+}
+
+interface ProcessingStats {
+  success: string[];
+  errors: Array<{ file: string; error: string }>;
+  skipped: string[];
+}
+
+async function main() {
+  console.log('\n📅 Processing events...\n');
+
+  const stats: ProcessingStats = {
+    success: [],
+    errors: [],
+    skipped: [],
+  };
+
+  if (!checkOnly) {
+    await Bun.$`mkdir -p ${OUTPUT_DIR}`.quiet();
+  }
+
+  const glob = new Glob('*.md');
+  const files = [...glob.scanSync(EVENTS_DIR)].filter((f) => !f.startsWith('_'));
+
+  if (files.length === 0) {
+    console.log('📭 No events found to process.\n');
+    if (!checkOnly) {
+      await generateRegistry([]);
+    }
+    return;
+  }
+
+  console.log(`🗓️  Found ${files.length} event(s)\n`);
+
+  const events: EventMetadata[] = [];
+
+  for (const file of files) {
+    try {
+      const result = await processEvent(file);
+
+      if (result.metadata.status === 'draft' && !includeDrafts) {
+        stats.skipped.push(file);
+        console.log(`  ⏭️  ${file} (draft)`);
+        continue;
+      }
+
+      events.push(result.metadata);
+
+      if (!checkOnly) {
+        await Bun.write(
+          `${OUTPUT_DIR}/${result.slug}.json`,
+          JSON.stringify(result.full, null, 2)
+        );
+      }
+
+      stats.success.push(file);
+      console.log(`  ✅ ${file} → ${result.slug}`);
+    } catch (e) {
+      const error = e instanceof Error ? e.message : String(e);
+      stats.errors.push({ file, error });
+      console.error(`  ❌ ${file}: ${error}`);
+    }
+  }
+
+  events.sort((a, b) => {
+    const aStart = a.occurrences[0]?.startUtc ?? '';
+    const bStart = b.occurrences[0]?.startUtc ?? '';
+    return aStart.localeCompare(bStart);
+  });
+
+  if (!checkOnly) {
+    await generateRegistry(events);
+    await generateCalendars(events);
+  }
+
+  console.log('\n' + '─'.repeat(50));
+  console.log(`\n📊 Summary:`);
+  console.log(`   ✅ Processed: ${stats.success.length}`);
+  if (stats.skipped.length > 0) {
+    console.log(`   ⏭️  Skipped:   ${stats.skipped.length} (drafts)`);
+  }
+  if (stats.errors.length > 0) {
+    console.log(`   ❌ Errors:    ${stats.errors.length}`);
+  }
+  console.log('');
+
+  if (stats.errors.length > 0) {
+    console.error('❌ Processing completed with errors.\n');
+    process.exit(1);
+  }
+
+  console.log(
+    checkOnly
+      ? '✅ Event validation completed successfully.\n'
+      : '✅ Event processing completed successfully.\n'
+  );
+}
+
+async function processEvent(filename: string): Promise<ProcessResult> {
+  const filepath = `${EVENTS_DIR}/${filename}`;
+  const raw = await Bun.file(filepath).text();
+  const slug = slugify(filename);
+
+  const { data, content } = matter(raw);
+  const frontmatter = validateEventFrontmatter(data, filename);
+  const occurrences = expandOccurrences(frontmatter);
+
+  const htmlPipeline = createPipeline();
+  const htmlResult = await htmlPipeline.process(content);
+  const html = String(htmlResult);
+
+  const metadata: EventMetadata = {
+    ...frontmatter,
+    slug,
+    occurrences,
+    recurrenceText: describeRecurrence(frontmatter.recurrence),
+  };
+
+  const full: Event = {
+    ...metadata,
+    content: html,
+  };
+
+  return { slug, metadata, full };
+}
+
+async function generateRegistry(events: EventMetadata[]) {
+  const eventsJson = JSON.stringify(events, null, 2);
+  const generatedAt = new Date().toISOString();
+
+  const code = `/**
+ * Event metadata registry.
+ *
+ * AUTO-GENERATED by scripts/process-events.ts
+ * Do not edit manually - changes will be overwritten.
+ *
+ * @generated
+ */
+
+import type { EventMetadata } from './events.types';
+
+/**
+ * All published events with build-time occurrence caches.
+ */
+export const events: EventMetadata[] = ${eventsJson};
+
+/**
+ * Registry generation timestamp.
+ */
+export const generatedAt = '${generatedAt}';
+
+/**
+ * Events indexed by slug.
+ */
+export const eventsBySlug: Record<string, EventMetadata> = Object.fromEntries(
+  events.map((event) => [event.slug, event])
+);
+
+/**
+ * Get event count.
+ */
+export const eventCount = events.length;
+`;
+
+  await Bun.write(REGISTRY_PATH, code);
+  console.log(`\n📦 Generated ${REGISTRY_PATH}`);
+}
+
+async function generateCalendars(events: EventMetadata[]) {
+  for (const event of events) {
+    const calendar = createCalendar(`ERA: ${event.title}`, event.timezone);
+    addEventToCalendar(calendar, event);
+    await Bun.write(`${OUTPUT_DIR}/${event.slug}.ics`, calendar.toString());
+  }
+
+  const combined = createCalendar('ERA Events', events[0]?.timezone ?? 'UTC');
+  for (const event of events) {
+    addEventToCalendar(combined, event);
+  }
+  await Bun.write(`${OUTPUT_DIR}/era-events.ics`, combined.toString());
+
+  const calendarFiles = [...new Glob('*.ics').scanSync(OUTPUT_DIR)];
+  console.log(`📆 Generated ${calendarFiles.length} calendar file(s) in ${OUTPUT_DIR}`);
+}
+
+function createCalendar(name: string, timezone: string) {
+  const calendar = ical({
+    name,
+    prodId: {
+      company: 'Emerging Researchers in Artificial Life',
+      product: 'ERA Events',
+      language: 'EN',
+    },
+    timezone: {
+      name: timezone === 'UTC' ? 'UTC' : timezone,
+      // Full VTIMEZONE with STANDARD/DAYLIGHT observances per IANA zone, emitted
+      // for every distinct event timezone — robust for strict subscription clients.
+      generator: getVtimezoneComponent,
+    },
+  });
+
+  calendar.method(ICalCalendarMethod.PUBLISH);
+  calendar.url(`https://${CALENDAR_DOMAIN}/events/era-events.ics`);
+
+  return calendar;
+}
+
+function addEventToCalendar(calendar: ReturnType<typeof ical>, event: EventMetadata) {
+  const start = DateTime.fromISO(event.start, { zone: event.timezone });
+  const end = getEventEnd(event, start);
+  const repeating = buildRepeatingString(event);
+  const description = [
+    event.summary,
+    event.registrationUrl ? `Registration: ${event.registrationUrl}` : undefined,
+    event.location.url ? `Location: ${event.location.url}` : undefined,
+  ].filter(Boolean).join('\n\n');
+
+  calendar.createEvent({
+    id: `${event.slug}@${CALENDAR_DOMAIN}`,
+    uid: `${event.slug}@${CALENDAR_DOMAIN}`,
+    start,
+    end,
+    timezone: event.timezone,
+    summary: event.title,
+    description,
+    location: event.location.label,
+    url: event.registrationUrl ?? event.location.url,
+    repeating: repeating || undefined,
+  });
+}
+
+function getEventEnd(event: EventFrontmatter, start: DateTime): DateTime | undefined {
+  if (event.durationMinutes !== undefined) {
+    return start.plus({ minutes: event.durationMinutes });
+  }
+
+  if (event.end) {
+    return DateTime.fromISO(event.end, { zone: event.timezone });
+  }
+
+  return undefined;
+}
+
+function formatIcsWallTime(value: string): string {
+  return value.replace(/[-:]/g, '');
+}
+
+function buildRepeatingString(event: EventMetadata): string | undefined {
+  const lines: string[] = [];
+
+  if (event.recurrence) {
+    lines.push(event.recurrence.startsWith('RRULE:') ? event.recurrence : `RRULE:${event.recurrence}`);
+  }
+
+  if (event.exdates && event.exdates.length > 0) {
+    lines.push(`EXDATE;TZID=${event.timezone}:${event.exdates.map(formatIcsWallTime).join(',')}`);
+  }
+
+  if (event.rdates && event.rdates.length > 0) {
+    lines.push(`RDATE;TZID=${event.timezone}:${event.rdates.map(formatIcsWallTime).join(',')}`);
+  }
+
+  return lines.length > 0 ? lines.join('\r\n') : undefined;
+}
+
+main().catch((e) => {
+  console.error('Fatal error:', e);
+  process.exit(1);
+});

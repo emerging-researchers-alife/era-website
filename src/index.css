@@ -1,0 +1,340 @@
+@import "tailwindcss";
+
+/* ========================================
+   ERA Design System - Custom Properties
+   ======================================== */
+
+@layer base {
+  :root {
+    /* Typography */
+    --font-display: 'Fraunces', Georgia, serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* Primary - ERA Green (official ISAL/ERA brand color) */
+    --color-primary: #5DE0A8;
+    --color-primary-light: #7DE6B9;
+    --color-primary-dark: #4BC896;
+    --color-primary-glow: rgba(93, 224, 168, 0.15);
+
+    /* Neutral - Deep space */
+    --color-dark: #0D1117;
+    --color-dark-soft: #161B22;
+    --color-dark-muted: #21262D;
+
+    /* Surface - Warm whites */
+    --color-surface: #FAFBFC;
+    --color-surface-alt: #F3F4F6;
+    --color-white: #FFFFFF;
+
+    /* Text */
+    --color-text-primary: rgba(13, 17, 23, 0.9);
+    --color-text-secondary: rgba(13, 17, 23, 0.6);
+    --color-text-muted: rgba(13, 17, 23, 0.4);
+    --color-text-on-dark: rgba(255, 255, 255, 0.9);
+
+    /* Accent */
+    --color-accent-blue: #7DD3FC;
+    --color-accent-purple: #C4B5FD;
+
+    /* Borders */
+    --color-border: rgba(13, 17, 23, 0.08);
+    --color-border-strong: rgba(13, 17, 23, 0.15);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(13, 17, 23, 0.04);
+    --shadow-md: 0 4px 12px rgba(13, 17, 23, 0.08);
+    --shadow-lg: 0 8px 24px rgba(13, 17, 23, 0.12);
+    --shadow-glow: 0 0 40px var(--color-primary-glow);
+
+    /* Spacing */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --space-7: 48px;
+    --space-8: 64px;
+    --space-9: 96px;
+    --space-10: 128px;
+
+    /* Timing */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-gentle: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #5DE0A8 0%, #3ECFA0 50%, #7DD3FC 100%);
+    --gradient-glow: radial-gradient(circle at center, var(--color-primary-glow) 0%, transparent 70%);
+    --gradient-dark: linear-gradient(180deg, #0D1117 0%, #161B22 100%);
+
+    /* Fluid Typography */
+    --font-size-hero: clamp(2.5rem, 5vw + 1rem, 4rem);
+    --font-size-h1: clamp(1.75rem, 3vw + 0.5rem, 2.5rem);
+    --font-size-h2: clamp(1.375rem, 2vw + 0.5rem, 1.75rem);
+    --font-size-h3: clamp(1.125rem, 1vw + 0.75rem, 1.25rem);
+    --font-size-body: clamp(1rem, 0.5vw + 0.875rem, 1.0625rem);
+    --font-size-small: 0.875rem;
+  }
+
+  /* Apply base styles */
+  html {
+    font-family: var(--font-body);
+    color: var(--color-text-primary);
+    background-color: var(--color-surface);
+    /* Always show scrollbar to prevent layout shift on load/transitions */
+    overflow-y: scroll;
+  }
+
+  body {
+    min-height: 100vh;
+    line-height: 1.7;
+    letter-spacing: 0.01em;
+  }
+
+  /* Typography hierarchy */
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  h1 {
+    font-size: var(--font-size-h1);
+    font-weight: 500;
+  }
+
+  h2 {
+    font-size: var(--font-size-h2);
+    font-weight: 500;
+  }
+
+  h3 {
+    font-size: var(--font-size-h3);
+    font-weight: 600;
+    font-family: var(--font-body);
+  }
+
+  code, pre {
+    font-family: var(--font-mono);
+    font-size: 0.9375rem;
+  }
+
+  /* Link styling */
+  a {
+    color: var(--color-primary-dark);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 200ms var(--ease-gentle);
+  }
+
+  a:hover {
+    border-bottom-color: var(--color-primary);
+  }
+}
+
+/* ========================================
+   Utility Classes
+   ======================================== */
+
+@layer components {
+  /* Container */
+  .container-era {
+    max-width: 1280px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: var(--space-5);
+    padding-right: var(--space-5);
+  }
+
+  @media (min-width: 768px) {
+    .container-era {
+      padding-left: var(--space-7);
+      padding-right: var(--space-7);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container-era {
+      padding-left: var(--space-8);
+      padding-right: var(--space-8);
+    }
+  }
+
+  /* Background patterns */
+  .bg-dotgrid {
+    background-image: radial-gradient(
+      circle at center,
+      var(--color-border) 1px,
+      transparent 1px
+    );
+    background-size: 24px 24px;
+  }
+
+  .bg-mesh {
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 40%, var(--color-primary-glow), transparent),
+      radial-gradient(ellipse 60% 40% at 80% 20%, rgba(125, 211, 252, 0.1), transparent),
+      var(--color-surface);
+  }
+
+  /* Noise texture overlay - apply to parent with position: relative */
+  .bg-noise {
+    position: relative;
+  }
+
+  .bg-noise::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.025;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Prose max-width for readability */
+  .prose-era {
+    max-width: 65ch;
+  }
+
+  /* Section spacing */
+  .section-spacing {
+    padding-top: var(--space-8);
+    padding-bottom: var(--space-9);
+  }
+
+  .event-detail-content {
+    color: var(--color-text-primary);
+    font-size: var(--font-size-body);
+    line-height: 1.75;
+  }
+
+  .event-detail-content > * + * {
+    margin-top: 1.25rem;
+  }
+
+  .event-detail-content h2,
+  .event-detail-content h3 {
+    color: var(--color-dark);
+    font-family: var(--font-display);
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  .event-detail-content h2 {
+    font-size: 1.5rem;
+    margin-top: 2rem;
+  }
+
+  .event-detail-content h3 {
+    font-size: 1.25rem;
+    margin-top: 1.75rem;
+  }
+
+  .event-detail-content ul,
+  .event-detail-content ol {
+    padding-left: 1.25rem;
+  }
+
+  .event-detail-content ul {
+    list-style: disc;
+  }
+
+  .event-detail-content ol {
+    list-style: decimal;
+  }
+
+  .event-detail-content a {
+    color: var(--color-primary-dark);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
+
+/* ========================================
+   Accessibility Utilities
+   ======================================== */
+
+/* Screen reader only - visually hidden but accessible */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.sr-only.focus\:not-sr-only:focus {
+  position: absolute;
+  width: auto;
+  height: auto;
+  padding: revert;
+  margin: revert;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* ========================================
+   Reduced Motion
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Keep essential transitions but make them instant */
+  .transition-colors,
+  .transition-opacity {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =========================
+   NCA Hero Styles
+   ========================= */
+
+.nca-hero-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.nca-canvas {
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  aspect-ratio: 1;
+  /* Nearest-neighbor scaling for crisp pixels */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+  cursor: crosshair;
+  /* Fade edges to avoid sharp cutoff */
+  -webkit-mask-image: radial-gradient(ellipse 45% 45% at center, black 70%, transparent 100%);
+  mask-image: radial-gradient(ellipse 45% 45% at center, black 70%, transparent 100%);
+}
+
+.nca-canvas:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nca-canvas {
+    cursor: default;
+  }
+}
