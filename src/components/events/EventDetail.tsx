@@ -224,13 +224,17 @@ export function EventDetail({ slug, selectedOccurrence }: EventDetailProps) {
         </section>
       )}
 
-      <section className="mb-8">
-        <h3 className="mb-3 font-display text-xl font-medium text-[var(--color-dark)]">
-          Description
-        </h3>
+      <section className="mb-8 max-w-3xl">
         <p className="max-w-3xl leading-relaxed text-[var(--color-text-secondary)]">
           {event.summary.trim()}
         </p>
+        {event.activities && event.activities.length > 0 && (
+          <ul className="mt-4 list-disc space-y-1 pl-5 text-[var(--color-text-secondary)]">
+            {event.activities.map((activity) => (
+              <li key={activity}>{activity}</li>
+            ))}
+          </ul>
+        )}
       </section>
 
       {visibleFurtherOccurrences.length > 0 && (
@@ -258,24 +262,6 @@ export function EventDetail({ slug, selectedOccurrence }: EventDetailProps) {
               {hiddenOccurrenceCount} later {hiddenOccurrenceCount === 1 ? 'date' : 'dates'} available through the calendar links.
             </p>
           )}
-        </section>
-      )}
-
-      {event.activities && event.activities.length > 0 && (
-        <section className="mb-8">
-          <h3 className="mb-3 font-display text-xl font-medium text-[var(--color-dark)]">
-            Activities
-          </h3>
-          <ul className="grid gap-2">
-            {event.activities.map((activity) => (
-              <li
-                key={activity}
-                className="rounded-lg bg-[var(--color-primary-glow)] px-4 py-2 text-[var(--color-dark)]"
-              >
-                {activity}
-              </li>
-            ))}
-          </ul>
         </section>
       )}
 
