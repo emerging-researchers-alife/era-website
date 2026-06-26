@@ -11,8 +11,7 @@
     "build:events": "bun run scripts/process-events.ts",
     "build:site": "bun run build.ts",
     "build": "bun run build:articles && bun run build:events && bun run build:site",
-    "content": "bun run build:articles && bun run build:events",
-    "postinstall": "bun run content"
+    "content": "bun run build:articles && bun run build:events"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
