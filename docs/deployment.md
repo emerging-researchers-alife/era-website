@@ -1,20 +1,37 @@
 # Deployment
 
-The site is configured for GitHub Pages. On every push to `main`, the deploy
-workflow installs dependencies with Bun, builds the site into `dist/`, uploads
-that directory, and publishes it through GitHub Pages.
+The site is configured for Cloudflare Pages. On every push to `main`, the deploy
+workflow installs dependencies with Bun, runs tests, builds the site into
+`dist/`, and uploads that directory to Cloudflare Pages with Wrangler.
 
-## Repository Settings
+## Cloudflare Project
 
-In the new repository:
+Production deployment currently targets the existing Cloudflare Pages project:
 
-1. Enable GitHub Pages.
-2. Set the source to GitHub Actions.
-3. Confirm the production domain, if one is used, points at GitHub Pages.
+- Project name: `emergingresearchers`
+- Default Pages URL: `https://emergingresearchers.pages.dev/`
+- Build command: `bun run build`
+- Build output directory: `dist`
+- Production branch: `main`
 
-The build uses root-relative paths for `emergingresearchers.life`. If the site
-is deployed under a subpath instead, update `BASE_PATH` in `src/router.tsx` and
-the `publicPath` option in `build.ts`.
+The build uses root-relative paths for a root domain such as
+`emergingresearchers.life`. If the site is deployed under a subpath instead,
+update `BASE_PATH` in `src/router.tsx` and the `publicPath` option in
+`build.ts`.
+
+## GitHub Repository Settings
+
+The deployment workflow uses Cloudflare Pages Direct Upload through GitHub
+Actions. Add these repository secrets before relying on automatic deployment:
+
+1. `CLOUDFLARE_ACCOUNT_ID`: the Cloudflare account ID that owns the
+   `emergingresearchers` Pages project.
+2. `CLOUDFLARE_API_TOKEN`: a Cloudflare API token with Pages edit/deploy access
+   for that account.
+
+If ERA prefers Cloudflare's native Git integration instead, connect the GitHub
+repository in the Cloudflare dashboard with the same build settings above and
+remove `.github/workflows/deploy.yml`.
 
 ## Calendar Files
 

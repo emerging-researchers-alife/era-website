@@ -46,7 +46,8 @@ They are recreated by `bun install`, `bun run content`, and `bun run build`.
 - Articles render at `/resources/<slug>`.
 - Events render on `/events` and event detail pages.
 - Calendar feeds are generated from event Markdown.
-- GitHub Pages deployment is configured in `.github/workflows/deploy.yml`.
+- Cloudflare Pages deployment is configured in `.github/workflows/deploy.yml`.
+- The production Cloudflare Pages project is `emergingresearchers`.
 
 ## Contributing
 

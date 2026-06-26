@@ -29,5 +29,6 @@ Both files are gitignored.
 ## Build Output
 
 `bun run build` runs content processing and then `build.ts`. The build script
-bundles the frontend into `dist/`, writes `404.html` for GitHub Pages SPA
-fallbacks, and copies generated article/event assets into the final output.
+bundles the frontend into `dist/`, writes static-hosting fallbacks for
+client-side routes, and copies generated article/event assets into the final
+output.
