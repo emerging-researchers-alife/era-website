@@ -74,6 +74,31 @@ describe('expandOccurrences', () => {
       },
     ]);
   });
+
+  test('preserves an all-day event as an exclusive local date range', () => {
+    const occurrences = expandOccurrences({
+      title: 'ALIFE 2026',
+      summary: 'The annual Artificial Life conference.',
+      start: '2026-08-17T00:00',
+      end: '2026-08-22T00:00',
+      allDay: true,
+      timezone: 'America/Toronto',
+      location: {
+        type: 'conference',
+        label: 'Waterloo, Ontario, Canada',
+      },
+      tags: [],
+      featured: false,
+      status: 'published',
+    });
+
+    expect(occurrences).toEqual([
+      {
+        startUtc: '2026-08-17T04:00:00Z',
+        endUtc: '2026-08-22T04:00:00Z',
+      },
+    ]);
+  });
 });
 
 describe('validateEventFrontmatter', () => {
@@ -99,5 +124,19 @@ describe('validateEventFrontmatter', () => {
         'bad-rrule.md'
       )
     ).toThrow('recurrence');
+  });
+
+  test('requires midnight boundaries and an end date for all-day events', () => {
+    expect(() =>
+      validateEventFrontmatter(
+        {
+          ...baseEvent,
+          start: '2026-08-17T09:00',
+          durationMinutes: undefined,
+          allDay: true,
+        },
+        'bad-all-day.md'
+      )
+    ).toThrow('all-day');
   });
 });

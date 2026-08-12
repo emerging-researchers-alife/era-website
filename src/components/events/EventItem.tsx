@@ -2,7 +2,13 @@ import { useNavigate } from '@tanstack/react-router';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ClockIcon, MapPinIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { AgendaEntry } from '../../lib/events';
-import { formatEventDate, formatLocalTime, formatShortDate, formatSourceTime } from '../../lib/events';
+import {
+  formatAllDayDateRange,
+  formatEventDate,
+  formatLocalTime,
+  formatShortDate,
+  formatSourceTime,
+} from '../../lib/events';
 import { getEventLayoutId, useEventSelection } from './EventSelectionContext';
 
 interface EventItemProps {
@@ -20,11 +26,13 @@ export function EventItem({ entry, compact = false }: EventItemProps) {
   const { event, next, rest } = entry;
 
   const resolved = { event, occurrence: next };
-  const date = formatEventDate(next.startUtc);
+  const date = formatEventDate(next.startUtc, event.allDay ? event.timezone : undefined);
   const localTime = formatLocalTime(next.startUtc);
   const sourceTime = formatSourceTime(next.startUtc, event.timezone);
 
-  const thenDates = rest.slice(0, MAX_THEN_DATES).map((o) => formatShortDate(o.startUtc));
+  const thenDates = rest
+    .slice(0, MAX_THEN_DATES)
+    .map((o) => formatShortDate(o.startUtc, event.allDay ? event.timezone : undefined));
   const moreCount = rest.length - thenDates.length;
 
   const openEvent = () => {
@@ -71,9 +79,15 @@ export function EventItem({ entry, compact = false }: EventItemProps) {
           <span className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-[var(--color-text-secondary)]">
             <span className="inline-flex items-center gap-1.5">
               <ClockIcon className="h-4 w-4 shrink-0 text-[var(--color-text-muted)]" aria-hidden="true" />
-              {localTime}
-              <span className="text-[var(--color-text-muted)]">·</span>
-              {sourceTime}
+              {event.allDay ? (
+                <>All day · {formatAllDayDateRange(next, event.timezone)}</>
+              ) : (
+                <>
+                  {localTime}
+                  <span className="text-[var(--color-text-muted)]">·</span>
+                  {sourceTime}
+                </>
+              )}
             </span>
             <span className="inline-flex min-w-0 items-center gap-1.5">
               <MapPinIcon className="h-4 w-4 shrink-0 text-[var(--color-text-muted)]" aria-hidden="true" />

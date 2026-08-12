@@ -1,6 +1,11 @@
 import { CalendarIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import type { EventMetadata, EventOccurrence } from '../../content/events.types';
-import { formatEventDate, formatLocalTime, formatSourceTime } from '../../lib/events';
+import {
+  formatAllDayDateRange,
+  formatEventDate,
+  formatLocalTime,
+  formatSourceTime,
+} from '../../lib/events';
 import { AddToCalendar } from './AddToCalendar';
 
 interface EventCardProps {
@@ -14,7 +19,10 @@ export function EventCard({
   occurrence,
   compact = false,
 }: EventCardProps) {
-  const date = formatEventDate(occurrence.startUtc);
+  const date = formatEventDate(
+    occurrence.startUtc,
+    event.allDay ? event.timezone : undefined
+  );
   const localTime = formatLocalTime(occurrence.startUtc);
   const sourceTime = formatSourceTime(occurrence.startUtc, event.timezone);
 
@@ -44,9 +52,15 @@ export function EventCard({
           <div className="flex flex-wrap gap-x-4 gap-y-2 mb-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
             <span className="flex items-center gap-1.5">
               <CalendarIcon className="w-4 h-4" />
-              {localTime} your time
-              <span className="text-[var(--color-text-muted)]">.</span>
-              {sourceTime}
+              {event.allDay ? (
+                <>All day · {formatAllDayDateRange(occurrence, event.timezone)}</>
+              ) : (
+                <>
+                  {localTime} your time
+                  <span className="text-[var(--color-text-muted)]">.</span>
+                  {sourceTime}
+                </>
+              )}
             </span>
             <span className="flex items-center gap-1.5">
               <MapPinIcon className="w-4 h-4" />

@@ -181,6 +181,25 @@ export function validateEventFrontmatter(
   validateWallTime(d.start, 'start', errors, true);
   validateWallTime(d.end, 'end', errors);
 
+  if (d.allDay !== undefined && typeof d.allDay !== 'boolean') {
+    errors.push({ field: 'allDay', message: 'must be a boolean' });
+  }
+
+  if (d.allDay === true) {
+    if (d.end === undefined) {
+      errors.push({ field: 'end', message: 'required for an all-day event' });
+    }
+    if (typeof d.start === 'string' && !d.start.endsWith('T00:00')) {
+      errors.push({ field: 'start', message: 'all-day events must start at 00:00' });
+    }
+    if (typeof d.end === 'string' && !d.end.endsWith('T00:00')) {
+      errors.push({ field: 'end', message: 'all-day events must end at 00:00' });
+    }
+    if (d.durationMinutes !== undefined) {
+      errors.push({ field: 'durationMinutes', message: 'cannot be used with allDay' });
+    }
+  }
+
   if (!d.timezone || typeof d.timezone !== 'string') {
     errors.push({ field: 'timezone', message: 'required IANA timezone string' });
   } else if (!DateTime.local().setZone(d.timezone).isValid) {
@@ -313,6 +332,7 @@ export function validateEventFrontmatter(
     summary: d.summary as string,
     start: d.start as string,
     end: d.end as string | undefined,
+    allDay: (d.allDay as boolean) ?? false,
     durationMinutes: d.durationMinutes as number | undefined,
     timezone: d.timezone as string,
     recurrence: d.recurrence as string | undefined,

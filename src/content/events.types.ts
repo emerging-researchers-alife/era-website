@@ -20,6 +20,8 @@ export interface EventFrontmatter {
   summary: string;
   start: string;
   end?: string;
+  /** Date-only event. `end` is the exclusive end date at 00:00 in `timezone`. */
+  allDay?: boolean;
   durationMinutes?: number;
   timezone: string;
   recurrence?: string;

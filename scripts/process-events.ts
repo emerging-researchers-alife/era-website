@@ -18,6 +18,7 @@ import { Glob } from 'bun';
 import matter from 'gray-matter';
 import ical, { ICalCalendarMethod } from 'ical-generator';
 import { DateTime } from 'luxon';
+import { unlink } from 'node:fs/promises';
 
 import { getVtimezoneComponent } from '@touch4it/ical-timezones';
 
@@ -58,6 +59,9 @@ async function main() {
 
   if (!checkOnly) {
     await Bun.$`mkdir -p ${OUTPUT_DIR}`.quiet();
+    for (const generatedFile of new Glob('*.{ics,json}').scanSync(OUTPUT_DIR)) {
+      await unlink(`${OUTPUT_DIR}/${generatedFile}`);
+    }
   }
 
   const glob = new Glob('*.md');
@@ -261,6 +265,7 @@ function addEventToCalendar(calendar: ReturnType<typeof ical>, event: EventMetad
     uid: `${event.slug}@${CALENDAR_DOMAIN}`,
     start,
     end,
+    allDay: event.allDay,
     timezone: event.timezone,
     summary: event.title,
     description,

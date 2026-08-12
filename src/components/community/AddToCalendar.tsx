@@ -19,6 +19,19 @@ function formatUtcForCalendar(value: string): string {
   return value.replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 }
 
+function formatDateForCalendar(value: string, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone,
+  }).formatToParts(new Date(value));
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? '';
+
+  return `${get('year')}${get('month')}${get('day')}`;
+}
+
 function getEndUtc(event: EventMetadata, occurrence: EventOccurrence): string {
   if (occurrence.endUtc) {
     return occurrence.endUtc;
@@ -31,7 +44,13 @@ function getEndUtc(event: EventMetadata, occurrence: EventOccurrence): string {
 
 function buildIcs(event: EventMetadata, occurrence: EventOccurrence): string {
   const endUtc = getEndUtc(event, occurrence);
-  const uid = `${event.slug}-${formatUtcForCalendar(occurrence.startUtc)}@emergingresearchers.life`;
+  const startValue = event.allDay
+    ? formatDateForCalendar(occurrence.startUtc, event.timezone)
+    : formatUtcForCalendar(occurrence.startUtc);
+  const endValue = event.allDay
+    ? formatDateForCalendar(endUtc, event.timezone)
+    : formatUtcForCalendar(endUtc);
+  const uid = `${event.slug}-${startValue}@emergingresearchers.life`;
 
   return [
     'BEGIN:VCALENDAR',
@@ -41,8 +60,8 @@ function buildIcs(event: EventMetadata, occurrence: EventOccurrence): string {
     'BEGIN:VEVENT',
     `UID:${uid}`,
     `DTSTAMP:${formatUtcForCalendar(new Date().toISOString())}`,
-    `DTSTART:${formatUtcForCalendar(occurrence.startUtc)}`,
-    `DTEND:${formatUtcForCalendar(endUtc)}`,
+    `${event.allDay ? 'DTSTART;VALUE=DATE' : 'DTSTART'}:${startValue}`,
+    `${event.allDay ? 'DTEND;VALUE=DATE' : 'DTEND'}:${endValue}`,
     `SUMMARY:${escapeIcsText(event.title)}`,
     `DESCRIPTION:${escapeIcsText(event.summary.trim())}`,
     `LOCATION:${escapeIcsText(event.location.label)}`,
@@ -53,7 +72,9 @@ function buildIcs(event: EventMetadata, occurrence: EventOccurrence): string {
 
 export function AddToCalendar({ event, occurrence }: AddToCalendarProps) {
   const endUtc = getEndUtc(event, occurrence);
-  const dates = `${formatUtcForCalendar(occurrence.startUtc)}/${formatUtcForCalendar(endUtc)}`;
+  const dates = event.allDay
+    ? `${formatDateForCalendar(occurrence.startUtc, event.timezone)}/${formatDateForCalendar(endUtc, event.timezone)}`
+    : `${formatUtcForCalendar(occurrence.startUtc)}/${formatUtcForCalendar(endUtc)}`;
 
   const googleUrl = new URL('https://calendar.google.com/calendar/render');
   googleUrl.searchParams.set('action', 'TEMPLATE');

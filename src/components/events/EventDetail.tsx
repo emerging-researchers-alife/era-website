@@ -4,7 +4,7 @@ import { ArrowTopRightOnSquareIcon, MapPinIcon, TicketIcon } from '@heroicons/re
 import { BASE_PATH } from '../../router';
 import { eventsBySlug } from '../../content/events.registry';
 import type { Event as EventContent, EventMetadata, EventOccurrence } from '../../content/events.types';
-import { formatLocalTime, formatSourceTime } from '../../lib/events';
+import { formatAllDayDateRange, formatLocalTime, formatSourceTime } from '../../lib/events';
 import { AddToCalendar } from '../community/AddToCalendar';
 
 interface EventDetailProps {
@@ -19,12 +19,13 @@ const SANITIZE_OPTIONS = {
   ADD_ATTR: ['encoding', 'data-codetabs', 'data-expandable-code', 'data-nca'],
 };
 
-function formatOccurrenceDate(startUtc: string): string {
+function formatOccurrenceDate(startUtc: string, timeZone?: string): string {
   return new Intl.DateTimeFormat(undefined, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone,
   }).format(new Date(startUtc));
 }
 
@@ -176,10 +177,14 @@ export function EventDetail({ slug, selectedOccurrence }: EventDetailProps) {
               {formatTimeUntil(occurrence.startUtc, occurrence.endUtc)}
             </p>
             <p className="mt-2 font-medium text-[var(--color-dark)]">
-              {formatOccurrenceDate(occurrence.startUtc)}
+              {event.allDay
+                ? formatAllDayDateRange(occurrence, event.timezone)
+                : formatOccurrenceDate(occurrence.startUtc)}
             </p>
             <p className="text-sm text-[var(--color-text-secondary)]">
-              {formatLocalTime(occurrence.startUtc)} your time, {formatSourceTime(occurrence.startUtc, event.timezone)}
+              {event.allDay
+                ? 'All day'
+                : `${formatLocalTime(occurrence.startUtc)} your time, ${formatSourceTime(occurrence.startUtc, event.timezone)}`}
             </p>
           </div>
         )}
@@ -249,10 +254,14 @@ export function EventDetail({ slug, selectedOccurrence }: EventDetailProps) {
                 className="rounded-lg border border-[var(--color-border)] bg-white px-4 py-3"
               >
                 <p className="font-medium text-[var(--color-dark)]">
-                  {formatOccurrenceDate(date.startUtc)}
+                  {event.allDay
+                    ? formatAllDayDateRange(date, event.timezone)
+                    : formatOccurrenceDate(date.startUtc)}
                 </p>
                 <p className="text-sm text-[var(--color-text-secondary)]">
-                  {formatLocalTime(date.startUtc)} your time, {formatSourceTime(date.startUtc, event.timezone)}
+                  {event.allDay
+                    ? 'All day'
+                    : `${formatLocalTime(date.startUtc)} your time, ${formatSourceTime(date.startUtc, event.timezone)}`}
                 </p>
               </div>
             ))}

@@ -70,13 +70,25 @@ function monthGroup(entries: AgendaEntry[], pick: (entry: AgendaEntry) => EventO
 
   for (const entry of entries) {
     const date = new Date(pick(entry).startUtc);
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const timeZone = entry.event.allDay ? entry.event.timezone : undefined;
+    const keyParts = new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      timeZone,
+    }).formatToParts(date);
+    const year = keyParts.find((part) => part.type === 'year')?.value ?? '';
+    const month = keyParts.find((part) => part.type === 'month')?.value ?? '';
+    const monthKey = `${year}-${month}`;
     let group = groups.at(-1);
 
     if (!group || group.monthKey !== monthKey) {
       group = {
         monthKey,
-        label: new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(date),
+        label: new Intl.DateTimeFormat(undefined, {
+          month: 'long',
+          year: 'numeric',
+          timeZone,
+        }).format(date),
         items: [],
       };
       groups.push(group);
@@ -147,17 +159,50 @@ export function formatLocalTime(startUtc: string): string {
   }).format(new Date(startUtc));
 }
 
-export function formatEventDate(startUtc: string): { month: string; day: string; weekday: string } {
+export function formatEventDate(
+  startUtc: string,
+  timeZone?: string
+): { month: string; day: string; weekday: string } {
   const date = new Date(startUtc);
 
   return {
-    month: new Intl.DateTimeFormat(undefined, { month: 'short' }).format(date),
-    day: new Intl.DateTimeFormat(undefined, { day: '2-digit' }).format(date),
-    weekday: new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(date),
+    month: new Intl.DateTimeFormat(undefined, { month: 'short', timeZone }).format(date),
+    day: new Intl.DateTimeFormat(undefined, { day: '2-digit', timeZone }).format(date),
+    weekday: new Intl.DateTimeFormat(undefined, { weekday: 'short', timeZone }).format(date),
   };
 }
 
 /** Short date for the "then scheduled" line, e.g. "13 Aug". */
-export function formatShortDate(startUtc: string): string {
-  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(new Date(startUtc));
+export function formatShortDate(startUtc: string, timeZone?: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    day: 'numeric',
+    month: 'short',
+    timeZone,
+  }).format(new Date(startUtc));
+}
+
+/** Human-readable inclusive range for an occurrence whose stored end is exclusive. */
+export function formatAllDayDateRange(
+  occurrence: EventOccurrence,
+  timeZone: string
+): string {
+  const start = new Date(occurrence.startUtc);
+  if (!occurrence.endUtc) {
+    return new Intl.DateTimeFormat(undefined, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      timeZone,
+    }).format(start);
+  }
+
+  const inclusiveEnd = new Date(new Date(occurrence.endUtc).getTime() - 1);
+  const formatter = new Intl.DateTimeFormat(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone,
+  });
+
+  return formatter.formatRange(start, inclusiveEnd);
 }
