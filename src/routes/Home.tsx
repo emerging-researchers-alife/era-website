@@ -1,12 +1,18 @@
 import { UserGroupIcon, BookOpenIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { Hero, CTASidebar, QuickLinkCard } from '../components/home';
 import { SectionHeading } from '../components/ui';
+import { MiniconAnnouncement } from '../components/home/MiniconAnnouncement';
+import { useMiniconPromotion } from '../hooks/useMiniconPromotion';
 
 export default function HomePage() {
+  const showMiniconAnnouncement = useMiniconPromotion();
+
   return (
     <>
+      {showMiniconAnnouncement && <MiniconAnnouncement />}
+
       {/* Hero Section */}
-      <Hero />
+      <Hero compact={showMiniconAnnouncement} />
 
       {/* Main Content with Sidebar */}
       <div className="container-era section-spacing">

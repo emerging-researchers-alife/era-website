@@ -10,6 +10,7 @@ const HomePage = lazy(() => import('./routes/Home'));
 const AboutPage = lazy(() => import('./routes/About'));
 const CommunityPage = lazy(() => import('./routes/Community'));
 const EventsPage = lazy(() => import('./routes/Events'));
+const MiniconPage = lazy(() => import('./routes/Minicon'));
 const EventModal = lazy(() => import('./components/events/EventModal'));
 const ResourcesPage = lazy(() => import('./routes/Resources'));
 const ArticlePage = lazy(() => import('./routes/Article'));
@@ -46,6 +47,12 @@ const eventsRoute = createRoute({
   component: EventsPage,
 });
 
+const miniconRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/minicon',
+  component: MiniconPage,
+});
+
 const eventRoute = createRoute({
   getParentRoute: () => eventsRoute,
   path: '$slug',
@@ -69,6 +76,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   aboutRoute,
   communityRoute,
+  miniconRoute,
   eventsRoute.addChildren([eventRoute]),
   resourcesRoute,
   articleRoute,
