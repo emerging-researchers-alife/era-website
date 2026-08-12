@@ -53,7 +53,11 @@ const itemVariantsReduced = {
   visible: { opacity: 1, y: 0 },
 };
 
-export function Hero() {
+interface HeroProps {
+  compact?: boolean;
+}
+
+export function Hero({ compact = false }: HeroProps) {
   const shouldReduceMotion = useReducedMotion();
   const isMobile = useIsMobile();
 
@@ -68,7 +72,9 @@ export function Hero() {
   };
 
   return (
-    <section className="relative min-h-[calc(100vh-72px)] flex items-center justify-center bg-mesh overflow-hidden">
+    <section className={compact
+      ? 'relative min-h-[calc(100dvh-128px)] flex items-center justify-center bg-mesh overflow-hidden'
+      : 'relative min-h-[calc(100dvh-72px)] flex items-center justify-center bg-mesh overflow-hidden'}>
       {/* Subtle dot grid overlay */}
       <div className="absolute inset-0 bg-dotgrid opacity-50" />
 
