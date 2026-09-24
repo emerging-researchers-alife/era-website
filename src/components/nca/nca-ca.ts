@@ -285,6 +285,7 @@ interface DenseInfo {
 }
 
 export interface NCA {
+  dispose: () => void;
   reset: () => void;
   step: () => void;
   draw: (visMode?: string) => void;
@@ -316,6 +317,9 @@ export function createCA(
   layerWeights: LayerWeights[],
   gridSize?: [number, number]
 ): NCA {
+  if (!layerWeights[0] || !layerWeights[1]) {
+    throw new Error('NCA requires two dense layers');
+  }
   gridSize = gridSize || [96, 96];
   const [gridW, gridH] = gridSize;
 
@@ -323,7 +327,9 @@ export function createCA(
   function createPrograms(): Record<string, twgl.ProgramInfo> {
     const res: Record<string, twgl.ProgramInfo> = {};
     for (const name in PROGRAMS) {
-      const fs_code = PREFIX + PROGRAMS[name];
+      const source = PROGRAMS[name];
+      if (!source) throw new Error(`Missing NCA shader: ${name}`);
+      const fs_code = PREFIX + source;
       res[name] = twgl.createProgramInfo(gl, [VS_CODE, fs_code]);
     }
     return res;
@@ -392,6 +398,7 @@ export function createCA(
     setTensorUniforms(uniforms, 'u_output', output);
 
     const program = progs[programName];
+    if (!program) throw new Error(`Missing NCA program: ${programName}`);
     twgl.bindFramebufferInfo(gl, output.fbi);
     gl.useProgram(program.program);
     twgl.setBuffersAndAttributes(gl, program, quad);
@@ -533,14 +540,16 @@ export function createCA(
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     }
 
-    gl.useProgram(progs.vis.program);
-    twgl.setBuffersAndAttributes(gl, progs.vis, quad);
+    const visProgram = progs.vis;
+    if (!visProgram) throw new Error('Missing NCA visualization program');
+    gl.useProgram(visProgram.program);
+    twgl.setBuffersAndAttributes(gl, visProgram, quad);
     const uniforms: Record<string, unknown> = {
       u_raw: 0.0,
       u_lastDamage: lastDamage,
       u_transparent: transparentMode ? 1.0 : 0.0,
     };
-    lastDamage[2] = Math.max(-0.1, lastDamage[2] - 1.0);
+    lastDamage[2] = Math.max(-0.1, (lastDamage[2] ?? 0) - 1.0);
 
     let inputBuf = stateBuf;
     if (visMode !== 'color') {
@@ -555,7 +564,7 @@ export function createCA(
       uniforms.u_raw = 1.0;
     }
     setTensorUniforms(uniforms, 'u_input', inputBuf);
-    twgl.setUniforms(progs.vis, uniforms);
+    twgl.setUniforms(visProgram, uniforms);
     twgl.drawBufferInfo(gl, quad);
 
     if (transparentMode) {
@@ -564,10 +573,12 @@ export function createCA(
   }
 
   function setWeights(newWeights: LayerWeights[]): void {
+    const [first, second] = newWeights;
+    if (!first || !second) throw new Error('NCA requires two dense layers');
     gl.deleteTexture(layerTex1.tex);
     gl.deleteTexture(layerTex2.tex);
-    layerTex1 = createDenseInfo(newWeights[0]);
-    layerTex2 = createDenseInfo(newWeights[1]);
+    layerTex1 = createDenseInfo(first);
+    layerTex2 = createDenseInfo(second);
   }
 
   const _flushBuf = new Uint8Array(4);
@@ -604,7 +615,23 @@ export function createCA(
     );
   }
 
+  let disposed = false;
+  function dispose(): void {
+    if (disposed) return;
+    disposed = true;
+    for (const tensor of [stateBuf, newStateBuf, perceptionBuf, hiddenBuf, updateBuf, maskedUpdateBuf]) {
+      gl.deleteTexture(tensor.tex);
+      gl.deleteFramebuffer(tensor.fbi.framebuffer);
+    }
+    gl.deleteTexture(layerTex1.tex);
+    gl.deleteTexture(layerTex2.tex);
+    for (const program of Object.values(progs)) gl.deleteProgram(program.program);
+    for (const attribute of Object.values(quad.attribs || {})) gl.deleteBuffer(attribute.buffer);
+    if (quad.indices) gl.deleteBuffer(quad.indices);
+  }
+
   return {
+    dispose,
     reset,
     step,
     draw,

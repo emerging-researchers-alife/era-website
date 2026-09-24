@@ -11,7 +11,10 @@
     "build:events": "bun run scripts/process-events.ts",
     "build:site": "bun run build.ts",
     "build": "bun run build:articles && bun run build:events && bun run build:site",
-    "content": "bun run build:articles && bun run build:events"
+    "typecheck": "tsc --noEmit",
+    "content": "bun run build:articles && bun run build:events",
+    "check:build": "bun scripts/qa/check-build.ts && bun scripts/qa/check-article-links.ts",
+    "dev:articles": "bun scripts/process-articles.ts --include-drafts && bun scripts/process-events.ts && bun --hot src/index.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -55,6 +58,7 @@
     "@types/luxon": "^3.7.1",
     "@types/mdast": "^4.0.4",
     "@types/react": "^19.2.6",
-    "@types/react-dom": "^19.2.3"
+    "@types/react-dom": "^19.2.3",
+    "typescript": "5.9.3"
   }
 }

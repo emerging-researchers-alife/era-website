@@ -19,11 +19,11 @@ describe('ERA Minicon 2026 content', () => {
       'Susan Stepney',
       'Eyvind Niklasson',
     ]);
-    expect(miniconSchedule[0].start).toBe('2026-08-16T13:00:00Z');
+    expect(miniconSchedule[0]?.start).toBe('2026-08-16T13:00:00Z');
     expect(miniconSchedule.at(-1)?.end).toBe('2026-08-16T21:15:00Z');
     expect(miniconSchedule.filter((session) => session.notes)).toHaveLength(7);
     expect(miniconSchedule.every((session, index) =>
-      index === 0 || miniconSchedule[index - 1].end === session.start
+      index === 0 || miniconSchedule[index - 1]?.end === session.start
     )).toBe(true);
     expect(miniconSpeakers.every((speaker) =>
       speaker.affiliation.some((part) => part.href?.startsWith('https://'))
@@ -41,10 +41,12 @@ describe('ERA Minicon 2026 content', () => {
   });
 
   test('formats Waterloo and Tokyo programme times with the next-day marker', () => {
-    expect(formatScheduleRange(miniconSchedule[0], MINICON_TIMEZONE)).toBe('09:00 - 09:30');
-    expect(formatScheduleRange(miniconSchedule[0], 'Asia/Tokyo')).toBe('22:00 - 22:30');
-    expect(formatScheduleRange(miniconSchedule[2], 'Asia/Tokyo')).toBe('23:15 - 23:45');
-    expect(formatScheduleRange(miniconSchedule[3], 'Asia/Tokyo')).toBe('23:45 - 00:45 (+1 day)');
-    expect(formatScheduleRange(miniconSchedule[4], 'Asia/Tokyo')).toBe('00:45 - 01:30 (+1 day)');
+    const [opening, , third, fourth, fifth] = miniconSchedule;
+    if (!opening || !third || !fourth || !fifth) throw new Error('Incomplete minicon schedule');
+    expect(formatScheduleRange(opening, MINICON_TIMEZONE)).toBe('09:00 - 09:30');
+    expect(formatScheduleRange(opening, 'Asia/Tokyo')).toBe('22:00 - 22:30');
+    expect(formatScheduleRange(third, 'Asia/Tokyo')).toBe('23:15 - 23:45');
+    expect(formatScheduleRange(fourth, 'Asia/Tokyo')).toBe('23:45 - 00:45 (+1 day)');
+    expect(formatScheduleRange(fifth, 'Asia/Tokyo')).toBe('00:45 - 01:30 (+1 day)');
   });
 });

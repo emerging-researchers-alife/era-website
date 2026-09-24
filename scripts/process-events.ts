@@ -262,7 +262,6 @@ function addEventToCalendar(calendar: ReturnType<typeof ical>, event: EventMetad
 
   calendar.createEvent({
     id: `${event.slug}@${CALENDAR_DOMAIN}`,
-    uid: `${event.slug}@${CALENDAR_DOMAIN}`,
     start,
     end,
     allDay: event.allDay,

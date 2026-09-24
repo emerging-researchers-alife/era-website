@@ -100,7 +100,7 @@ export interface ArticleMetadata extends ArticleFrontmatter {
  * Full article data including processed HTML content.
  * Used when rendering an individual article page.
  */
-export interface Article extends ArticleMetadata {
+export interface Article extends Omit<ArticleMetadata, 'bibliography'> {
   /** Processed HTML content of the article body */
   content: string;
 

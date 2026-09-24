@@ -102,7 +102,7 @@ export function EventDetail({ slug, selectedOccurrence }: EventDetailProps) {
   const visibleFurtherOccurrences = furtherOccurrences.slice(0, MAX_VISIBLE_FURTHER_DATES);
   const hiddenOccurrenceCount = Math.max(furtherOccurrences.length - visibleFurtherOccurrences.length, 0);
   const datesAreUpcoming =
-    displayOccurrences.length > 0 &&
+    displayOccurrences[0] !== undefined &&
     new Date(displayOccurrences[0].endUtc ?? displayOccurrences[0].startUtc).getTime() >= Date.now();
 
   useEffect(() => {

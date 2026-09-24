@@ -13,7 +13,7 @@ export function scrollToElement(
     behavior?: ScrollBehavior;
   } = {}
 ): void {
-  const { offset = 100, behavior = 'smooth' } = options;
+  const { offset = 100, behavior = 'instant' } = options;
 
   const element = document.getElementById(elementId);
   if (!element) return;
@@ -40,8 +40,9 @@ export function getActiveSection(
   // Find the section that's currently in view
   for (let i = sectionIds.length - 1; i >= 0; i--) {
     const sectionId = sectionIds[i];
+    if (!sectionId) continue;
     const element = document.getElementById(sectionId);
-    if (element && element.offsetTop <= scrollPosition) {
+    if (element && element.getBoundingClientRect().top + window.scrollY <= scrollPosition) {
       return sectionId;
     }
   }

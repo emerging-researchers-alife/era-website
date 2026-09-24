@@ -19,9 +19,11 @@ interface ArticleCardProps {
  * - Three or more: "Jane Doe et al."
  */
 function formatAuthors(authors: ArticleMetadata['authors']): string {
-  if (authors.length === 1) return authors[0].name;
-  if (authors.length === 2) return `${authors[0].name} & ${authors[1].name}`;
-  return `${authors[0].name} et al.`;
+  const [first, second] = authors;
+  if (!first) return '';
+  if (!second) return first.name;
+  if (authors.length === 2) return `${first.name} & ${second.name}`;
+  return `${first.name} et al.`;
 }
 
 /**

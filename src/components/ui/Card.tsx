@@ -18,17 +18,16 @@ const paddingStyles = {
 export const Card = forwardRef<HTMLDivElement, CardProps>(
   ({ children, hover = true, padding = 'md', className, ...props }, ref) => {
     const shouldReduceMotion = useReducedMotion();
-    const Component = hover ? motion.div : 'div';
     const motionProps = hover && !shouldReduceMotion
       ? {
           whileHover: { y: -4, scale: 1.01 },
           whileTap: { scale: 0.98 },
-          transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
+          transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] as const },
         }
       : {};
 
     return (
-      <Component
+      <motion.div
         ref={ref}
         className={clsx(
           'bg-white rounded-2xl',
@@ -42,7 +41,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         {...props}
       >
         {children}
-      </Component>
+      </motion.div>
     );
   }
 );

@@ -113,7 +113,7 @@ export function buildUpcomingAgenda(events: EventMetadata[], now = Date.now()): 
       .filter((occurrence) => occurrenceEnd(occurrence) >= now)
       .sort((a, b) => startTime(a) - startTime(b));
 
-    if (upcoming.length === 0) continue;
+    if (!upcoming[0]) continue;
     entries.push({ event, next: upcoming[0], rest: upcoming.slice(1) });
   }
 
@@ -130,7 +130,7 @@ export function buildPastList(events: EventMetadata[], now = Date.now()): Agenda
       .filter((occurrence) => occurrenceEnd(occurrence) < now)
       .sort((a, b) => startTime(b) - startTime(a));
 
-    if (past.length === 0) continue;
+    if (!past[0]) continue;
     entries.push({ event, next: past[0], rest: [] });
   }
 

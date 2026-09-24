@@ -8,7 +8,7 @@ import { HoverBox } from './HoverBox';
 
 interface FootnotePopupProps {
   /** Reference to the article content container */
-  containerRef: React.RefObject<HTMLElement>;
+  containerRef: React.RefObject<HTMLElement | null>;
 }
 
 interface FootnoteState {

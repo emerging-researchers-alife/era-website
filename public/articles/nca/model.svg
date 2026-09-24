@@ -84,7 +84,6 @@
            style="clip-rule:nonzero" />
       </clipPath>
       <image
-         clip-path="url(#p.1)"
          width="640"
          height="640"
          x="0"
@@ -116,7 +115,6 @@
            style="clip-rule:nonzero" />
       </clipPath>
       <image
-         clip-path="url(#p.2)"
          width="640"
          height="640"
          x="0"
@@ -843,7 +841,6 @@
            style="clip-rule:nonzero" />
       </clipPath>
       <image
-         clip-path="url(#p.3)"
          width="640"
          height="640"
          x="0"
@@ -1615,7 +1612,6 @@
            style="clip-rule:evenodd" />
       </clipPath>
       <image
-         clip-path="url(#p.4)"
          width="1060"
          height="1060"
          x="0"

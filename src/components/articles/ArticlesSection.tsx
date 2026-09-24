@@ -5,7 +5,7 @@
  */
 
 import { useMemo, useEffect } from 'react';
-import Fuse from 'fuse.js';
+import Fuse, { type IFuseOptions } from 'fuse.js';
 import { SearchBar } from './SearchBar';
 import { TagFilter } from './TagFilter';
 import { ArticleList } from './ArticleList';
@@ -16,7 +16,7 @@ import { getCooccurringTags } from '../../lib/tagCooccurrence';
 import type { ArticleMetadata } from '../../content/types';
 
 // Fuse.js configuration for fuzzy search
-const fuseOptions: Fuse.IFuseOptions<ArticleMetadata> = {
+const fuseOptions: IFuseOptions<ArticleMetadata> = {
   keys: [
     { name: 'title', weight: 0.4 },
     { name: 'abstract', weight: 0.3 },

@@ -3,7 +3,8 @@
  * Allows users to switch between PyTorch, MLX, and JAX implementations.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useId } from 'react';
+import { flushSync } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckIcon, ClipboardIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
@@ -63,6 +64,8 @@ function setStoredPreference(framework: Framework): void {
 export function CodeTabs({ blocks, className }: CodeTabsProps) {
   const [activeFramework, setActiveFramework] = useState<Framework>('pytorch');
   const [copied, setCopied] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const indicatorId = useId();
 
   // Load preference on mount
   useEffect(() => {
@@ -98,9 +101,18 @@ export function CodeTabs({ blocks, className }: CodeTabsProps) {
   const activeBlock = blocks.find((b) => b.framework === activeFramework) || blocks[0];
 
   const handleTabClick = useCallback((framework: Framework) => {
-    setActiveFramework(framework);
-    setStoredPreference(framework);
-    setCopied(false);
+    const anchor = containerRef.current;
+    const top = anchor?.getBoundingClientRect().top;
+    // All code blocks share the preference, so blocks above this one also resize.
+    // Commit them together and retain the clicked block's viewport position.
+    flushSync(() => {
+      setActiveFramework(framework);
+      setStoredPreference(framework);
+      setCopied(false);
+    });
+    if (anchor && top !== undefined) {
+      window.scrollBy({ top: anchor.getBoundingClientRect().top - top, behavior: 'instant' });
+    }
   }, []);
 
   const handleCopy = useCallback(async () => {
@@ -117,7 +129,7 @@ export function CodeTabs({ blocks, className }: CodeTabsProps) {
   if (!blocks.length) return null;
 
   return (
-    <div className={clsx('code-tabs', className)}>
+    <div ref={containerRef} className={clsx('code-tabs', className)}>
       {/* Tab bar */}
       <div className="code-tabs-header">
         <div className="code-tabs-list" role="tablist">
@@ -135,7 +147,7 @@ export function CodeTabs({ blocks, className }: CodeTabsProps) {
               {FRAMEWORK_LABELS[framework]}
               {activeFramework === framework && (
                 <motion.div
-                  layoutId="code-tab-indicator"
+                  layoutId={indicatorId}
                   className="code-tab-indicator"
                   transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
                 />
@@ -179,15 +191,8 @@ export function CodeTabs({ blocks, className }: CodeTabsProps) {
 
       {/* Code panel */}
       <div className="code-tabs-panel" role="tabpanel">
-        <AnimatePresence mode="wait">
           {activeBlock && (
-            <motion.div
-              key={activeBlock.framework}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.15 }}
-            >
+            <div>
               {activeBlock.highlightedHtml ? (
                 <pre>
                   <code
@@ -200,9 +205,8 @@ export function CodeTabs({ blocks, className }: CodeTabsProps) {
                   <code className="language-python">{activeBlock.code}</code>
                 </pre>
               )}
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
       </div>
     </div>
   );

@@ -23,7 +23,8 @@
  */
 
 import { visit } from 'unist-util-visit';
-import type { Root, Code, Parent } from 'mdast';
+import type { Root, Code } from 'mdast';
+import type { ContainerDirective } from 'mdast-util-directive';
 import type { Plugin } from 'unified';
 
 // Framework mapping from title to framework ID
@@ -34,18 +35,6 @@ const FRAMEWORK_MAP: Record<string, string> = {
   jax: 'jax',
   flax: 'jax',
 };
-
-// Extended type for container directives from remark-directive
-interface ContainerDirective extends Parent {
-  type: 'containerDirective';
-  name: string;
-  attributes?: Record<string, string>;
-  data?: {
-    hName?: string;
-    hProperties?: Record<string, unknown>;
-    hChildren?: unknown[];
-  };
-}
 
 interface CodeBlock {
   framework: string;
@@ -61,7 +50,7 @@ function parseTitle(meta: string | null | undefined): string | null {
 
   // Match title="value" or title='value'
   const match = meta.match(/title\s*=\s*["']([^"']+)["']/);
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 /**

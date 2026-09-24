@@ -20,11 +20,11 @@ abstract: >
   can grow images from a single seed cell. Code is provided in PyTorch, MLX, and JAX.
 status: "published"
 featured: true
-thumbnail: "/articles/nca/nca-growth.png"
+thumbnail: "/articles/nca/target.png"
 ---
 
 :::nca{weights="lizard" width=96 height=96}
-This "Experiment 3" lizard from Mordvintsev et al. (2020) can regenerate when damaged. Click to damage it, double-click to reset. By the end of this tutorial, you'll understand exactly how it works.
+This "Experiment 3" lizard from Mordvintsev et al. (2020) can regenerate when damaged. Click to damage it, double-click to reset. This tutorial builds the basic growth model; regeneration additionally requires damage and pool-based training.
 :::
 
 :::sidenote
@@ -33,11 +33,11 @@ This tutorial is based on [Growing Neural Cellular Automata](https://distill.pub
 
 ## What is a Neural Cellular Automaton?
 
-Imagine a grid of cells, like pixels on a screen. Each cell can only see its immediate neighbors - the 8 cells surrounding it. Despite this limited view, if we give each cell the right rules for updating itself, something magical happens: complex patterns emerge from simple beginnings.
+Imagine a grid of cells, like pixels on a screen. Each cell can only see its immediate neighbors - the 8 cells surrounding it. Despite this limited view, if we give each cell the right rules for updating itself, repeated local updates can produce complex patterns from simple beginnings.
 
 This is the essence of **cellular automata** (CA). The most famous example is Conway's Game of Life, where cells follow just four simple rules and produce endlessly fascinating behaviors.
 
-**Neural Cellular Automata** (NCA) take this idea further. Instead of hand-coding the rules, we *learn* them using a neural network. This lets us train cells to grow into any pattern we want - and remarkably, they can even repair themselves when damaged.
+**Neural Cellular Automata** (NCA) take this idea further. Instead of hand-coding the rules, we *learn* them using a neural network. This lets us train cells toward a target image. Growth, persistence, and repair depend on the training procedure; repair does not follow automatically from learning to grow.
 
 ## Prerequisites
 
@@ -48,6 +48,40 @@ Before we start, you should have:
 - **Basic understanding of tensors** - think of them as multi-dimensional arrays
 
 Don't worry if you haven't used neural networks before - we'll explain everything as we go.
+
+## Setup and a First Run
+
+Use Python 3.12 in a virtual environment. Download the [target image](/articles/nca/target.png),
+the script for your framework, and its matching requirements file into one folder:
+
+| Framework | Script | Tested dependency pins |
+|---|---|---|
+| PyTorch (CPU or CUDA) | [nca_pytorch.py](/articles/nca/nca_pytorch.py) | [requirements-pytorch.txt](/articles/nca/requirements-pytorch.txt) |
+| MLX (Apple Silicon) | [nca_mlx.py](/articles/nca/nca_mlx.py) | [requirements-mlx.txt](/articles/nca/requirements-mlx.txt) |
+| JAX (CPU reference) | [nca_jax.py](/articles/nca/nca_jax.py) | [requirements-jax.txt](/articles/nca/requirements-jax.txt) |
+
+For example, on macOS or Linux:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-pytorch.txt
+python nca_pytorch.py --target target.png --steps 1
+```
+
+On Windows, activate with `.venv\Scripts\activate` instead. Substitute `mlx` or
+`jax` in the install and run commands for those frameworks. GPU-specific package
+installation may differ from this CPU reference environment.
+
+The short run prints `Step 0: loss = ...` and saves model weights. The loss should
+be finite; its exact value varies. One step does **not** produce a trained image.
+Use `--steps 2000` for the tutorial training budget, then use the visualization
+function below to inspect growth. Training time depends on your hardware.
+
+The supplied target is a rendered sample from the credited lizard model. The
+scripts train new weights; they do not reproduce the pretrained regenerating demo.
+The checks described here cover execution, tensor layouts, and gradients, not a
+claim that every run learns a stable pattern.
 
 ## The Core Idea
 
@@ -62,7 +96,7 @@ The system works in five stages:
 2. **Perception**: Each cell "sees" its neighbors using Sobel gradient filters
 3. **Update network**: A small neural network decides how to change each cell's state
 4. **Stochastic update**: Cells update randomly (not all at once) to avoid synchronization artifacts
-5. **Alive masking**: Only living cells (those with neighbors) participate
+5. **Alive masking**: Keep cells alive only when the alpha-neighborhood test passes before and after the update
 
 Let's build each piece.
 
@@ -83,7 +117,7 @@ def create_seed(size=64, channels=16, device='cpu'):
     """Create initial grid with a single seed cell in the center.
 
     The seed has alpha=1 and hidden channels=1, marking it as "alive".
-    RGB channels start at 0 so the seed is initially invisible.
+    RGB=0 and alpha=1 make the seed opaque black.
     """
     grid = torch.zeros(1, channels, size, size, device=device)
     center = size // 2
@@ -105,7 +139,7 @@ def create_seed(size=64, channels=16):
     """
     grid = mx.zeros((1, size, size, channels))
     center = size // 2
-    grid = grid.at[0, center, center, 3:].set(1.0)
+    grid[0, center, center, 3:] = 1.0
     return grid
 
 seed = create_seed(size=64)
@@ -168,26 +202,11 @@ def get_sobel_kernels():
     return sobel_x, sobel_y, identity
 
 def perceive(grid, sobel_x, sobel_y, identity):
-    """Apply perception filters to compute what each cell sees.
-
-    Uses depthwise convolution: each filter is applied to each channel
-    independently, producing 48 output values per cell.
-    """
-    B, C, H, W = grid.shape
-
-    # Stack filters and reshape for depthwise conv
-    filters = torch.stack([identity, sobel_x, sobel_y])  # [3, 3, 3]
-    filters = filters.unsqueeze(1).repeat(C, 1, 1, 1)    # [C*3, 1, 3, 3]
-    filters = filters.view(C * 3, 1, 3, 3).to(grid.device)
-
-    # Depthwise convolution
-    grid_repeated = grid.repeat(1, 3, 1, 1)  # [B, C*3, H, W]
-    perception = F.conv2d(grid_repeated, filters, padding=1, groups=C * 3)
-
-    # Reshape to [B, H, W, C*3] for the update network
-    perception = perception.permute(0, 2, 3, 1)
-    return perception
-
+    """Apply identity, x-gradient, and y-gradient independently to each channel."""
+    channels = grid.shape[1]
+    filters = torch.stack([identity, sobel_x, sobel_y]).unsqueeze(1)
+    filters = filters.repeat(channels, 1, 1, 1).to(grid.device)
+    return F.conv2d(grid, filters, padding=1, groups=channels).permute(0, 2, 3, 1)
 sobel_x, sobel_y, identity = get_sobel_kernels()
 perception = perceive(seed, sobel_x, sobel_y, identity)
 print(f"Perception shape: {perception.shape}")  # [1, 64, 64, 48]
@@ -215,25 +234,11 @@ def get_sobel_kernels():
     return sobel_x, sobel_y, identity
 
 def perceive(grid, sobel_x, sobel_y, identity):
-    """Apply perception filters using depthwise convolution.
-
-    MLX conv2d expects [B, H, W, C_in] input and [H, W, C_in, C_out] weight.
-    """
-    B, H, W, C = grid.shape
-
-    # Stack filters: [3, 3, 1, 3]
-    filters = mx.stack([identity, sobel_x, sobel_y], axis=-1)
-    filters = mx.expand_dims(filters, axis=2)
-
-    # Tile for all channels: [3, 3, C, 3]
-    filters = mx.tile(filters, (1, 1, C, 1))
-
-    # Depthwise conv (groups=C)
-    perception = mx.conv2d(grid, filters, padding=1, groups=C)
-    perception = perception.reshape(B, H, W, C * 3)
-
-    return perception
-
+    """MLX weights use [output_channels, height, width, input_channels/group]."""
+    channels = grid.shape[-1]
+    filters = mx.stack([identity, sobel_x, sobel_y], axis=0)[..., None]
+    filters = mx.tile(filters, (channels, 1, 1, 1))
+    return mx.conv2d(grid, filters, padding=1, groups=channels)
 sobel_x, sobel_y, identity = get_sobel_kernels()
 perception = perceive(seed, sobel_x, sobel_y, identity)
 print(f"Perception shape: {perception.shape}")  # [1, 64, 64, 48]
@@ -262,30 +267,15 @@ def get_sobel_kernels():
     return sobel_x, sobel_y, identity
 
 def perceive(grid, sobel_x, sobel_y, identity):
-    """Apply perception filters to all channels.
-
-    Uses vmap for efficient vectorized computation across channels.
-    """
-    B, H, W, C = grid.shape
-
-    # Stack filters: [3, 3, 1, 3]
-    filters = jnp.stack([identity, sobel_x, sobel_y], axis=-1)
-    filters = jnp.expand_dims(filters, axis=2)
-
-    # Apply filters to each channel using vmap
-    def convolve_channel(channel):
-        return lax.conv(channel[..., None], filters, (1, 1), 'SAME')
-
-    # Vectorize over channels
-    channels = jnp.transpose(grid, (3, 0, 1, 2))  # [C, B, H, W]
-    perceptions = jax.vmap(convolve_channel)(channels)  # [C, B, H, W, 3]
-
-    # Reshape to [B, H, W, C*3]
-    perceptions = jnp.transpose(perceptions, (1, 2, 3, 0, 4))  # [B, H, W, C, 3]
-    perception = perceptions.reshape(B, H, W, C * 3)
-
-    return perception
-
+    """Use explicit NHWC/HWIO layouts and one convolution group per channel."""
+    channels = grid.shape[-1]
+    filters = jnp.stack([identity, sobel_x, sobel_y], axis=-1)[:, :, None, :]
+    filters = jnp.tile(filters, (1, 1, 1, channels))
+    return lax.conv_general_dilated(
+        grid, filters, (1, 1), 'SAME',
+        dimension_numbers=('NHWC', 'HWIO', 'NHWC'),
+        feature_group_count=channels,
+    )
 sobel_x, sobel_y, identity = get_sobel_kernels()
 perception = perceive(seed, sobel_x, sobel_y, identity)
 print(f"Perception shape: {perception.shape}")  # [1, 64, 64, 48]
@@ -394,7 +384,7 @@ Two more pieces make NCAs work well:
 Instead of updating all cells at once (which would require a global clock), each cell randomly decides whether to update. This makes the system more robust and removes grid artifacts.
 
 ### Alive Masking
-We only want "living" cells to participate. A cell is considered alive if it or any neighbor has alpha > 0.1. Dead cells are forced to stay at zero.
+We only want "living" cells to participate. A cell is considered alive if it or any neighbor has alpha > 0.1. The test includes the cell itself. Apply the mask both before and after the update so newly inactive cells cannot leave hidden state behind.
 
 :::codetabs
 ```python {title="PyTorch"}
@@ -423,11 +413,12 @@ def step(grid, update_net, sobel_x, sobel_y, identity, update_prob=0.5):
     update_mask = (torch.rand(B, 1, H, W, device=grid.device) < update_prob).float()
 
     # 4. Apply update
+    pre_alive = alive_mask(grid)
     grid = grid + delta * update_mask
 
     # 5. Alive masking
     mask = alive_mask(grid)
-    grid = grid * mask
+    grid = grid * pre_alive * mask
 
     return grid
 ```
@@ -464,11 +455,12 @@ def step(grid, update_net, sobel_x, sobel_y, identity, update_prob=0.5):
     mask = (mx.random.uniform(shape=(B, H, W, 1)) < update_prob).astype(mx.float32)
 
     # 4. Apply update
+    pre_alive = alive_mask(grid)
     grid = grid + delta * mask
 
     # 5. Alive masking
     alive = alive_mask(grid)
-    grid = grid * alive
+    grid = grid * pre_alive * alive
 
     return grid
 ```
@@ -505,11 +497,12 @@ def step(grid, params, model, sobel_x, sobel_y, identity, key, update_prob=0.5):
     mask = (jax.random.uniform(subkey, (B, H, W, 1)) < update_prob).astype(jnp.float32)
 
     # 4. Apply update
+    pre_alive = alive_mask(grid)
     grid = grid + delta * mask
 
     # 5. Alive masking
     alive = alive_mask(grid)
-    grid = grid * alive
+    grid = grid * pre_alive * alive
 
     return grid, key
 ```
@@ -520,15 +513,15 @@ def step(grid, params, model, sobel_x, sobel_y, identity, key, update_prob=0.5):
 Now we put it all together. The training loop:
 
 1. Start from a seed cell
-2. Run for N steps (randomly sampled between 64-96)
+2. Run for N steps (randomly sampled from 64 through 95)
 3. Compare RGBA channels to target image
 4. Backpropagate through all steps
 5. Update network weights
 
 :::codetabs
 ```python {title="PyTorch"}
+import numpy as np
 from PIL import Image
-import torchvision.transforms as T
 
 def load_target(path, size=40):
     """Load and preprocess target image.
@@ -538,8 +531,7 @@ def load_target(path, size=40):
     img = Image.open(path).convert('RGBA')
     img = img.resize((size, size), Image.LANCZOS)
 
-    transform = T.ToTensor()
-    target = transform(img)  # [4, H, W]
+    target = torch.from_numpy(np.asarray(img, dtype=np.float32).copy() / 255.0).permute(2, 0, 1)
 
     # Premultiply RGB by alpha
     rgb = target[:3] * target[3:4]
@@ -673,8 +665,12 @@ def train_nca(params, model, target, steps=2000, lr=2e-3):
 
     @jax.jit
     def loss_fn(params, grid, key, n_steps):
-        for _ in range(n_steps):
-            grid, key = step(grid, params, model, sobel_x, sobel_y, identity, key)
+        # A fixed-length scan supports reverse-mode gradients under JIT.
+        def advance(carry, index):
+            grid, key = carry
+            candidate, key = step(grid, params, model, sobel_x, sobel_y, identity, key)
+            return (jnp.where(index < n_steps, candidate, grid), key), None
+        (grid, key), _ = lax.scan(advance, (grid, key), jnp.arange(96))
         return jnp.mean((grid[..., :4] - target_padded) ** 2)
 
     @jax.jit
@@ -840,7 +836,7 @@ def visualize_growth(params, model, n_steps=200, save_path=None):
 
 ## Full Scripts
 
-Want to run everything at once? Here are complete, self-contained scripts:
+The scripts below collect the model and training loop in one place. Download the matching script and target image from the setup section. Training quality depends on the target, random seed, and training budget; the short smoke check only verifies execution.
 
 :::details{title="Complete PyTorch Script"}
 ```python
@@ -852,7 +848,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from PIL import Image
-import torchvision.transforms as T
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import numpy as np
@@ -872,13 +867,11 @@ def get_sobel_kernels(device='cpu'):
     return sobel_x, sobel_y, identity
 
 def perceive(grid, sobel_x, sobel_y, identity):
-    B, C, H, W = grid.shape
-    filters = torch.stack([identity, sobel_x, sobel_y]).unsqueeze(1).repeat(C, 1, 1, 1)
-    filters = filters.view(C * 3, 1, 3, 3)
-    grid_repeated = grid.repeat(1, 3, 1, 1)
-    perception = F.conv2d(grid_repeated, filters, padding=1, groups=C * 3)
-    return perception.permute(0, 2, 3, 1)
-
+    """Apply identity, x-gradient, and y-gradient independently to each channel."""
+    channels = grid.shape[1]
+    filters = torch.stack([identity, sobel_x, sobel_y]).unsqueeze(1)
+    filters = filters.repeat(channels, 1, 1, 1).to(grid.device)
+    return F.conv2d(grid, filters, padding=1, groups=channels).permute(0, 2, 3, 1)
 # ============ Update Network ============
 class UpdateNetwork(nn.Module):
     def __init__(self, channels=16, hidden=128):
@@ -900,13 +893,14 @@ def step(grid, net, sobel_x, sobel_y, identity, update_prob=0.5):
     perception = perceive(grid, sobel_x, sobel_y, identity)
     delta = net(perception).permute(0, 3, 1, 2)
     mask = (torch.rand(1, 1, grid.shape[2], grid.shape[3], device=grid.device) < update_prob).float()
+    pre_alive = alive_mask(grid)
     grid = grid + delta * mask
-    return grid * alive_mask(grid)
+    return grid * pre_alive * alive_mask(grid)
 
 # ============ Training ============
 def load_target(path, size=40, device='cpu'):
     img = Image.open(path).convert('RGBA').resize((size, size), Image.LANCZOS)
-    target = T.ToTensor()(img).to(device)
+    target = torch.from_numpy(np.asarray(img, dtype=np.float32).copy() / 255.0).permute(2, 0, 1).to(device)
     rgb = target[:3] * target[3:4]
     return torch.cat([rgb, target[3:4]], dim=0).unsqueeze(0)
 
@@ -935,9 +929,16 @@ def train(net, target_path, steps=2000, lr=2e-3):
             print(f"Step {i}: loss = {loss.item():.6f}")
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--target', default='target.png')
+    parser.add_argument('--steps', type=int, default=2000)
+    args = parser.parse_args()
     net = UpdateNetwork()
-    # train(net, "target.png")  # Uncomment with your target image
-    print("NCA ready! Call train(net, 'your_image.png') to train.")
+    train(net, args.target, steps=args.steps)
+    torch.save(net.state_dict(), 'nca-pytorch.pt')
+    print('Saved weights. A finite loss verifies execution, not successful growth.')
+
 ```
 :::
 
@@ -959,7 +960,7 @@ from matplotlib.animation import FuncAnimation
 def create_seed(size=64, channels=16):
     grid = mx.zeros((1, size, size, channels))
     center = size // 2
-    grid = grid.at[0, center, center, 3:].set(1.0)
+    grid[0, center, center, 3:] = 1.0
     return grid
 
 # ============ Perception ============
@@ -970,13 +971,11 @@ def get_sobel_kernels():
     return sobel_x, sobel_y, identity
 
 def perceive(grid, sobel_x, sobel_y, identity):
-    B, H, W, C = grid.shape
-    filters = mx.stack([identity, sobel_x, sobel_y], axis=-1)
-    filters = mx.expand_dims(filters, axis=2)
-    filters = mx.tile(filters, (1, 1, C, 1))
-    perception = mx.conv2d(grid, filters, padding=1, groups=C)
-    return perception.reshape(B, H, W, C * 3)
-
+    """MLX weights use [output_channels, height, width, input_channels/group]."""
+    channels = grid.shape[-1]
+    filters = mx.stack([identity, sobel_x, sobel_y], axis=0)[..., None]
+    filters = mx.tile(filters, (channels, 1, 1, 1))
+    return mx.conv2d(grid, filters, padding=1, groups=channels)
 # ============ Update Network ============
 class UpdateNetwork(nn.Module):
     def __init__(self, channels=16, hidden=128):
@@ -1003,8 +1002,9 @@ def step(grid, net, sobel_x, sobel_y, identity, update_prob=0.5):
     perception = perceive(grid, sobel_x, sobel_y, identity)
     delta = net(perception)
     mask = (mx.random.uniform(shape=(1, grid.shape[1], grid.shape[2], 1)) < update_prob).astype(mx.float32)
+    pre_alive = alive_mask(grid)
     grid = grid + delta * mask
-    return grid * alive_mask(grid)
+    return grid * pre_alive * alive_mask(grid)
 
 # ============ Training ============
 def load_target(path, size=40):
@@ -1037,8 +1037,16 @@ def train(net, target_path, steps=2000, lr=2e-3):
             print(f"Step {i}: loss = {loss.item():.6f}")
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--target', default='target.png')
+    parser.add_argument('--steps', type=int, default=2000)
+    args = parser.parse_args()
     net = UpdateNetwork()
-    print("NCA ready! Call train(net, 'your_image.png') to train.")
+    train(net, args.target, steps=args.steps)
+    net.save_weights('nca-mlx.safetensors')
+    print('Saved weights. A finite loss verifies execution, not successful growth.')
+
 ```
 :::
 
@@ -1072,18 +1080,15 @@ def get_sobel_kernels():
     return sobel_x, sobel_y, identity
 
 def perceive(grid, sobel_x, sobel_y, identity):
-    B, H, W, C = grid.shape
-    filters = jnp.stack([identity, sobel_x, sobel_y], axis=-1)
-    filters = jnp.expand_dims(filters, axis=2)
-
-    def convolve_channel(channel):
-        return lax.conv(channel[..., None], filters, (1, 1), 'SAME')
-
-    channels = jnp.transpose(grid, (3, 0, 1, 2))
-    perceptions = jax.vmap(convolve_channel)(channels)
-    perceptions = jnp.transpose(perceptions, (1, 2, 3, 0, 4))
-    return perceptions.reshape(B, H, W, C * 3)
-
+    """Use explicit NHWC/HWIO layouts and one convolution group per channel."""
+    channels = grid.shape[-1]
+    filters = jnp.stack([identity, sobel_x, sobel_y], axis=-1)[:, :, None, :]
+    filters = jnp.tile(filters, (1, 1, 1, channels))
+    return lax.conv_general_dilated(
+        grid, filters, (1, 1), 'SAME',
+        dimension_numbers=('NHWC', 'HWIO', 'NHWC'),
+        feature_group_count=channels,
+    )
 # ============ Update Network ============
 class UpdateNetwork(nn.Module):
     channels: int = 16
@@ -1106,8 +1111,9 @@ def step(grid, params, model, sobel_x, sobel_y, identity, key, update_prob=0.5):
     delta = model.apply(params, perception)
     key, subkey = jax.random.split(key)
     mask = (jax.random.uniform(subkey, (1, grid.shape[1], grid.shape[2], 1)) < update_prob).astype(jnp.float32)
+    pre_alive = alive_mask(grid)
     grid = grid + delta * mask
-    return grid * alive_mask(grid), key
+    return grid * pre_alive * alive_mask(grid), key
 
 # ============ Training ============
 def load_target(path, size=40):
@@ -1137,8 +1143,11 @@ def train(model, target_path, steps=2000, lr=2e-3):
         def loss_fn(params):
             grid = create_seed()
             k = subkey
-            for _ in range(n_steps):
-                grid, k = step(grid, params, model, sobel_x, sobel_y, identity, k)
+            def advance(carry, index):
+                grid, k = carry
+                candidate, k = step(grid, params, model, sobel_x, sobel_y, identity, k)
+                return (jnp.where(index < n_steps, candidate, grid), k), None
+            (grid, k), _ = lax.scan(advance, (grid, k), jnp.arange(96))
             return jnp.mean((grid[..., :4] - target_padded) ** 2)
 
         loss, grads = jax.value_and_grad(loss_fn)(params)
@@ -1154,8 +1163,18 @@ def train(model, target_path, steps=2000, lr=2e-3):
     return params
 
 if __name__ == "__main__":
-    model = UpdateNetwork()
-    print("NCA ready! Call train(model, 'your_image.png') to train.")
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--target', default='target.png')
+    parser.add_argument('--steps', type=int, default=2000)
+    args = parser.parse_args()
+    net = UpdateNetwork()
+    params = train(net, args.target, steps=args.steps)
+    from flax.serialization import to_bytes
+    from pathlib import Path
+    Path('nca-jax.msgpack').write_bytes(to_bytes(params))
+    print('Saved weights. A finite loss verifies execution, not successful growth.')
+
 ```
 :::
 
@@ -1180,11 +1199,11 @@ This usually means gradients exploded. Solutions:
 ### Training is slow
 - Use GPU if available (CUDA for PyTorch, Metal for MLX)
 - Reduce grid size during experimentation (32x32 trains faster)
-- Use fewer steps per training iteration
+- Use fewer steps per training iteration; keep the padded target and grid dimensions consistent
 
 ## What's Next?
 
-You now have a working NCA! Here are some directions to explore:
+You now have the components of a basic growth NCA. A successful short test checks execution; it does not establish learned growth or regeneration. Here are some directions to explore:
 
 ### Pool-Based Training
 The basic training above can be unstable - patterns may not persist. The original paper uses a "sample pool" technique where you save intermediate states and resume training from them, teaching the NCA to maintain patterns over time.

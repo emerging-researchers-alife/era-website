@@ -308,7 +308,10 @@
   color: var(--color-text-on-dark);
   padding: 1.25rem 1.5rem;
   border-radius: 12px;
-  overflow-x: auto;
+  overflow-x: visible;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-width: 0;
   margin: 1.5em 0;
   /* Ensure code blocks don't break out of grid */
   max-width: 100%;
@@ -430,10 +433,12 @@
    ======================================== */
 
 .article-content figure {
+  display: block;
   margin: 2em 0;
 }
 
 .article-content figure img {
+  display: block;
   max-width: 100%;
   height: auto;
   border-radius: 8px;
@@ -966,4 +971,11 @@
   border: 1px solid #c00;
   border-radius: 8px;
   color: #900;
+}
+
+/* Wrap long lines in plain, tabbed, and expandable article code. */
+.article-content pre code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }

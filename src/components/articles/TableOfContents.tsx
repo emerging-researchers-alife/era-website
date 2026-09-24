@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { flushSync } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDownIcon, ChevronRightIcon, ListBulletIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
@@ -90,12 +91,11 @@ export function TableOfContents({ items, className }: TableOfContentsProps) {
   }, [sectionIds]);
 
   const handleItemClick = useCallback((id: string) => {
-    // Close dropdown first, then scroll after exit animation completes
-    // This fixes mobile scroll not working due to AnimatePresence interference
-    setIsExpanded(false);
-    setTimeout(() => {
-      scrollToElement(id, { offset: 100 });
-    }, 250);
+    // Collapse before measuring: an animated dropdown changes the target's position.
+    flushSync(() => setIsExpanded(false));
+    scrollToElement(id, { offset: 100 });
+    history.replaceState(history.state, '', `#${encodeURIComponent(id)}`);
+    setActiveId(id);
   }, []);
 
   if (items.length === 0) {
@@ -123,15 +123,11 @@ export function TableOfContents({ items, className }: TableOfContentsProps) {
           </motion.span>
         </button>
 
-        <AnimatePresence>
           {isExpanded && (
-            <motion.nav
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
+            <nav
               className="overflow-hidden"
               aria-label="Table of contents"
+        style={{ overflowAnchor: 'none' }}
             >
               <ul className="mt-2 p-4 rounded-xl bg-white shadow-[var(--shadow-sm)] space-y-1">
                 {groups.map((group) => (
@@ -172,15 +168,15 @@ export function TableOfContents({ items, className }: TableOfContentsProps) {
                   </li>
                 ))}
               </ul>
-            </motion.nav>
+            </nav>
           )}
-        </AnimatePresence>
       </div>
 
       {/* Desktop: Sticky sidebar with collapsible sections */}
       <nav
         className={clsx('hidden lg:block sticky top-24', className)}
         aria-label="Table of contents"
+        style={{ overflowAnchor: 'none' }}
       >
         <p
           className="text-xs font-semibold uppercase tracking-wider mb-4"

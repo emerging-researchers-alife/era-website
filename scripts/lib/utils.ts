@@ -54,7 +54,7 @@ export function extractTableOfContents(tree: Root): TableOfContentsItem[] {
     const match = /^h([1-6])$/.exec(node.tagName);
     if (!match) return;
 
-    const level = parseInt(match[1], 10);
+    const level = parseInt(match[1] ?? '0', 10);
     const id = (node.properties?.id as string) || '';
 
     // Extract text content from heading

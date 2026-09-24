@@ -229,7 +229,9 @@ export function formatScheduleRange(
     minute: '2-digit',
     hourCycle: 'h23',
   });
-  const eventDay = dateIndex(new Date(miniconSchedule[0].start), MINICON_TIMEZONE);
+  const firstSession = miniconSchedule[0];
+  if (!firstSession) throw new Error('Minicon schedule is empty');
+  const eventDay = dateIndex(new Date(firstSession.start), MINICON_TIMEZONE);
   const dayOffset = Math.max(dateIndex(start, timeZone), dateIndex(end, timeZone)) - eventDay;
   const dayLabel = dayOffset > 0 ? ` (+${dayOffset} day${dayOffset === 1 ? '' : 's'})` : '';
 

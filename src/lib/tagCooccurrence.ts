@@ -66,6 +66,7 @@ export function buildCooccurrenceMatrix(): Map<string, Map<string, number>> {
       for (let j = i + 1; j < tags.length; j++) {
         const tag1 = tags[i];
         const tag2 = tags[j];
+        if (!tag1 || !tag2) continue;
 
         // Increment count for both directions
         if (!matrix.has(tag1)) matrix.set(tag1, new Map());

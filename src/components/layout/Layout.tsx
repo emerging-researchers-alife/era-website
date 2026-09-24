@@ -27,7 +27,7 @@ export function Layout() {
         <motion.main
           id="main-content"
           className="flex-1 pt-[72px]"
-          initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           exit={shouldReduceMotion ? undefined : { opacity: 0, y: -20 }}
           transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.3, ease: [0.16, 1, 0.3, 1] }}

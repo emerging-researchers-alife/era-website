@@ -5,7 +5,9 @@
  * Used by the :::nca directive in article markdown.
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useReducedMotion } from 'framer-motion';
+import poster from '../../assets/nca/lizard-poster.png';
 import { NCACanvas } from '../nca';
 import type { LayerWeights } from '../nca/nca-ca';
 
@@ -29,23 +31,10 @@ interface NCADemoProps {
   className?: string;
 }
 
-function checkWebGLSupport(): boolean {
-  if (typeof window === 'undefined') return false;
-  try {
-    const canvas = document.createElement('canvas');
-    return !!canvas.getContext('webgl');
-  } catch {
-    return false;
-  }
-}
-
 export function NCADemo({ config, className }: NCADemoProps) {
-  const [hasWebGL, setHasWebGL] = useState(true);
+  const reducedMotion = useReducedMotion();
   const [hasError, setHasError] = useState(false);
-
-  useEffect(() => {
-    setHasWebGL(checkWebGLSupport());
-  }, []);
+  const [paused, setPaused] = useState(false);
 
   const weights = WEIGHTS_MAP[config.weights];
 
@@ -64,33 +53,11 @@ export function NCADemo({ config, className }: NCADemoProps) {
     setHasError(true);
   };
 
-  // Fallback for no WebGL or error
-  if (!hasWebGL || hasError) {
-    return (
-      <figure className={`nca-demo nca-demo-fallback ${className || ''}`}>
-        <div className="nca-demo-fallback-content">
-          <p>
-            Interactive demo requires WebGL.{' '}
-            <a
-              href="https://distill.pub/2020/growing-ca/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View the original on Distill →
-            </a>
-          </p>
-        </div>
-        {config.caption && (
-          <figcaption className="nca-demo-caption">{config.caption}</figcaption>
-        )}
-      </figure>
-    );
-  }
-
   return (
     <figure className={`nca-demo ${className || ''}`}>
       <div className="nca-demo-canvas-wrapper">
-        <NCACanvas
+        {hasError || reducedMotion ? <img src={poster} width="96" height="96"
+          className="nca-demo-canvas" alt="A lizard grown by a neural cellular automaton" /> : <NCACanvas
           width={config.width}
           height={config.height}
           weights={weights}
@@ -98,8 +65,14 @@ export function NCADemo({ config, className }: NCADemoProps) {
           transparent
           className="nca-demo-canvas"
           onError={handleError}
-        />
-        <div className="nca-demo-hint">Click to damage • Double-click to reset</div>
+          paused={paused}
+        />}
+        {!hasError && !reducedMotion && <>
+          <div className="nca-demo-hint">Click or tap to damage · Double-click to reset</div>
+          <button type="button" className="nca-pause" onClick={() => setPaused(value => !value)}>
+            {paused ? 'Resume animation' : 'Pause animation'}
+          </button>
+        </>}
       </div>
       {config.caption && (
         <figcaption className="nca-demo-caption">{config.caption}</figcaption>

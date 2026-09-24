@@ -1,12 +1,12 @@
 import { createRouter, createRootRoute, createRoute, notFound } from '@tanstack/react-router';
 import { lazy } from 'react';
 import { Layout } from './components/layout';
+import HomePage from './routes/Home';
 
 // Base path for custom domain (empty string for root)
 export const BASE_PATH = '';
 
-// Lazy load page components
-const HomePage = lazy(() => import('./routes/Home'));
+// The homepage is eager; secondary routes load on demand.
 const AboutPage = lazy(() => import('./routes/About'));
 const CommunityPage = lazy(() => import('./routes/Community'));
 const EventsPage = lazy(() => import('./routes/Events'));

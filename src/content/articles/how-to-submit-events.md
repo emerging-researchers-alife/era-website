@@ -19,6 +19,15 @@ ERA events live in `src/content/events/` as Markdown files with YAML
 frontmatter. The frontmatter drives the `/events` page and the generated `.ics`
 calendar feeds.
 
+## Get the Repository
+
+Follow the [repository setup steps](/resources/how-to-submit-articles#step-1-get-the-repository),
+then create a branch from your checkout:
+
+```bash
+git checkout -b event/your-event-slug
+```
+
 ## Create the Event File
 
 Copy `src/content/events/_template.md` to a new filename:
@@ -65,12 +74,16 @@ rdates:
   - "2026-04-16T18:00"
 ```
 
-## Preview and Validate (optional)
+## Preview and Validate
 
 You only ever commit your event Markdown file. The event registry and `.ics`
 calendar files are **generated automatically** — they are gitignored and rebuilt
-on every install, on each pull request, and on deploy, so there is nothing else
+when you run the content or development commands, on each pull request, and on deploy, so there is nothing else
 to add to git.
+
+Fill in the template's title, summary, location, and times. Remove recurrence
+for a one-off event. Replace all example URLs, and set `status: "published"`
+when the event is ready to appear on the calendar.
 
 To check and preview your event before opening a PR:
 

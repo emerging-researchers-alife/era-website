@@ -117,7 +117,7 @@ export function createPipeline(): Processor<MdastRoot, MdastRoot, HastRoot, Hast
  * Create a minimal pipeline for extracting the HAST tree
  * (used for TOC extraction before stringify).
  */
-export function createHastPipeline(): Processor<MdastRoot, MdastRoot, HastRoot, HastRoot, HastRoot> {
+export function createHastPipeline() {
   return (
     unified()
       .use(remarkParse)

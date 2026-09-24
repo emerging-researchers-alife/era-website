@@ -25,7 +25,6 @@ import type { Article } from '../content/types';
 
 // Import styles
 import '../styles/article.css';
-import 'katex/dist/katex.min.css';
 
 export default function ArticlePage() {
   const { slug } = useParams({ from: '/resources/$slug' });
@@ -90,7 +89,7 @@ export default function ArticlePage() {
       if (!href) return;
 
       // Only intercept internal links (starting with / but not //)
-      if (href.startsWith('/') && !href.startsWith('//')) {
+      if (href.startsWith('/') && !href.startsWith('//') && !/\.[a-z0-9]+(?:[?#]|$)/i.test(href) && !anchor.hasAttribute('download') && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
         e.preventDefault();
         navigate({ to: href });
         window.scrollTo(0, 0);
@@ -189,6 +188,7 @@ export default function ArticlePage() {
 
   return (
     <div className="section-spacing">
+      <link rel="stylesheet" href="/vendor/katex/katex.min.css" precedence="math" />
       {/* Back Link - outside grid */}
       <div className="container-era mb-6">
         <Link

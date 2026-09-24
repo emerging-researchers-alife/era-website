@@ -61,10 +61,9 @@ export default function EventModal() {
         panelRef.current.querySelectorAll<HTMLElement>(focusableSelector)
       ).filter((element) => !element.hasAttribute('disabled'));
 
-      if (focusable.length === 0) return;
-
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
 
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();

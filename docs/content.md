@@ -54,6 +54,11 @@ Run these before opening a pull request:
 
 ```bash
 bun run content
+bun run typecheck
 bun test
 bun run build
+bun run check:build
 ```
+
+For article drafts, use `bun run dev:articles`. After Markdown edits, run
+`bun scripts/process-articles.ts --include-drafts` in a second terminal and refresh.

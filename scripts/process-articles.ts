@@ -163,8 +163,9 @@ async function processArticle(filename: string): Promise<ProcessResult> {
     readingTime,
   };
 
+  const { bibliography: _bibliographyPath, ...articleMetadata } = metadata;
   const full: Article = {
-    ...metadata,
+    ...articleMetadata,
     content: html,
     tableOfContents,
   };

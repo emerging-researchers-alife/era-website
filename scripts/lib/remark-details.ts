@@ -15,20 +15,9 @@
  */
 
 import { visit } from 'unist-util-visit';
-import type { Root, Code, Parent } from 'mdast';
+import type { Root, Code } from 'mdast';
+import type { ContainerDirective } from 'mdast-util-directive';
 import type { Plugin } from 'unified';
-
-// Extended type for container directives from remark-directive
-interface ContainerDirective extends Parent {
-  type: 'containerDirective';
-  name: string;
-  attributes?: Record<string, string>;
-  data?: {
-    hName?: string;
-    hProperties?: Record<string, unknown>;
-    hChildren?: unknown[];
-  };
-}
 
 interface ExpandableData {
   title: string;

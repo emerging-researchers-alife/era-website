@@ -53,16 +53,27 @@ const eventAssetRoutes = getEventAssetRoutes();
 const server = serve({
   port: process.env.PORT || 3001,
   routes: {
+    "/vendor/katex/*": async req => {
+      const asset = new URL(req.url).pathname.replace('/vendor/katex/', '');
+      if (!/^(katex\.min\.css|fonts\/[A-Za-z0-9_-]+\.(woff2?|ttf))$/.test(asset)) {
+        return new Response('Not found', { status: 404 });
+      }
+      const base = process.env.NODE_ENV === 'production' ? 'dist/vendor/katex' : 'node_modules/katex/dist';
+      const assetFile = file(join(process.cwd(), base, asset));
+      return await assetFile.exists() ? new Response(assetFile) : new Response('Not found', { status: 404 });
+    },
     "/articles/*": async (req) => {
       try {
         const url = new URL(req.url);
         const pathPart = url.pathname.replace('/articles/', '');
 
         if (!pathPart.endsWith('.json')) {
-          return new Response(JSON.stringify({ error: "Not found" }), {
-            status: 404,
-            headers: { "Content-Type": "application/json" },
-          });
+          if (pathPart.includes('..') || !/^[a-zA-Z0-9_./-]+$/.test(pathPart)) {
+            return new Response('Not found', { status: 404 });
+          }
+          const assetDir = process.env.NODE_ENV === 'production' ? 'dist' : 'public';
+          const asset = file(join(process.cwd(), assetDir, 'articles', pathPart));
+          return await asset.exists() ? new Response(asset) : new Response('Not found', { status: 404 });
         }
 
         const slug = pathPart.replace('.json', '');

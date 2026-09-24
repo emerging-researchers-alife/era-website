@@ -63,7 +63,7 @@ at [github.com](https://github.com) if you don't have one.
 
 ## Step 1: Get the Repository
 
-Start from the ERA website repository on GitHub:
+Start from the [ERA website repository](https://github.com/emerging-researchers-alife/era-website):
 
 1. If you have write access, use the main ERA repository.
 2. If you are contributing from outside the organization, fork the repository first.
@@ -159,11 +159,8 @@ Place your images there and reference them in your article:
 Process your article and start the development server:
 
 ```bash
-# Process all articles (generates JSON files)
-bun run scripts/process-articles.ts --include-drafts
-
-# Start the development server
-bun run dev
+# Generate content including drafts, then start the development server
+bun run dev:articles
 ```
 
 Open `http://localhost:3001/resources/your-article-slug` in your browser to preview your article.
@@ -175,7 +172,15 @@ Check that:
 - Images appear as expected
 - The table of contents works
 
-Make changes to your `.md` file and refresh to see updates.
+After editing Markdown, regenerate content in a second terminal, then refresh:
+
+```bash
+bun scripts/process-articles.ts --include-drafts
+```
+
+The development server watches application code; Markdown needs this separate
+processing step. Drafts are available locally through `dev:articles` and excluded
+from the normal production build.
 
 ## Step 7: Commit Your Changes
 
@@ -296,7 +301,7 @@ The best ERA articles share some common qualities:
 
 - **Clear purpose**: Readers know what they'll learn within the first few paragraphs
 - **Practical examples**: Code that readers can run and experiment with
-- **Multi-framework support**: PyTorch, MLX, and JAX implementations where applicable
+- **A runnable example**: One tested implementation is enough; add other frameworks when they help your readers
 - **Visual aids**: Diagrams and figures that clarify complex concepts
 - **Honest limitations**: Acknowledge what your approach doesn't cover
 
