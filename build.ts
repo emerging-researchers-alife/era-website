@@ -178,6 +178,7 @@ const result = await Bun.build({
   plugins: [plugin],
   minify: true,
   splitting: true,
+  naming: { chunk: "[name]-[hash].[ext]" },
   target: "browser",
   sourcemap: "linked",
   // Root path for custom domain (emergingresearchers.life)
